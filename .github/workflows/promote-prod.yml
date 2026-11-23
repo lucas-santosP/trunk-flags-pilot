@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Tag precisa ter passado por homol com sucesso
+      - name: Tag precisa ter passado por homol (ou diferir de homol só em flags/production.json)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -38,11 +38,18 @@ jobs:
           for id in $ids; do
             state=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" --jq '.[0].state')
             if [ "$state" = "success" ]; then
-              echo "Deployment $id em homol com sucesso para $GITHUB_SHA"
+              echo "Deployment $id em homol com sucesso para $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
           done
-          echo "::error::$GITHUB_REF_NAME ($GITHUB_SHA) não tem deploy com sucesso em homol. Rode release-homol antes."
+
+          homol_sha=$(.github/scripts/last-successful-deploy.sh homol)
+          if .github/scripts/is-production-flags-only.sh "$homol_sha" "$GITHUB_SHA"; then
+            echo "Fast-track: $GITHUB_REF_NAME difere de homol ($homol_sha) só em flags/production.json" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "::error::$GITHUB_REF_NAME ($GITHUB_SHA) não passou por homol e não é uma mudança só de flags/production.json. Rode release-homol antes."
           exit 1
 
       - name: Bloquear rollback acidental
@@ -50,14 +57,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          current=""
-          for id in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=production" --jq '.[].id'); do
-            state=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" --jq '.[0].state')
-            if [ "$state" = "success" ]; then
-              current=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id" --jq '.sha')
-              break
-            fi
-          done
+          current=$(.github/scripts/last-successful-deploy.sh production)
           if [ -z "$current" ]; then
             echo "Primeiro deploy em produção."
             exit 0

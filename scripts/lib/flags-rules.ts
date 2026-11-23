@@ -139,3 +139,27 @@ export function bumpVersion(currentTag: string | null, bump: Bump): string {
   }
   return `v${major}.${minor}.${patch + 1}`
 }
+
+export function validateActivation(
+  registry: Registry,
+  environments: Record<Environment, EnvironmentFlags>,
+  flagName: string,
+): string[] {
+  const metadata = registry[flagName]
+  if (!metadata) {
+    return [`flag "${flagName}" não existe em flags/registry.json`]
+  }
+  const errors: string[] = []
+  if (metadata.type !== 'release') {
+    errors.push(`flag "${flagName}" é do tipo "${metadata.type}": ative manualmente`)
+  }
+  if (environments.production[flagName] !== false) {
+    errors.push(`flag "${flagName}" já está ligada em produção`)
+  }
+  if (environments.homol[flagName] !== true) {
+    errors.push(
+      `flag "${flagName}" não está ligada em homol: valide em homol antes de ativar em produção`,
+    )
+  }
+  return errors
+}
