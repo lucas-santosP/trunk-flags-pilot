@@ -36,6 +36,10 @@ export default tseslint.config(
           name: '__FLAGS__',
           message: 'Leia flags apenas via useFlag/isFlagEnabled/<Feature> de src/flags.',
         },
+        {
+          name: '__FLAG_MATRIX__',
+          message: 'Leia a matriz de flags apenas via listFlagMatrix de src/flags.',
+        },
       ],
       'no-restricted-imports': [
         'error',

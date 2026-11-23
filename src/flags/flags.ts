@@ -13,3 +13,21 @@ export function useFlag(name: FlagName): boolean {
 export function listFlags(): Array<[string, boolean]> {
   return Object.entries(enabledFlags)
 }
+
+export type FlagMatrixRow = {
+  name: string
+  dev: boolean
+  homol: boolean
+  production: boolean
+}
+
+export function listFlagMatrix(): FlagMatrixRow[] {
+  return Object.keys(__FLAG_MATRIX__.dev).map(function toRow(name) {
+    return {
+      name,
+      dev: __FLAG_MATRIX__.dev[name] === true,
+      homol: __FLAG_MATRIX__.homol[name] === true,
+      production: __FLAG_MATRIX__.production[name] === true,
+    }
+  })
+}
