@@ -1,0 +1,77 @@
+name: Release homol
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Tipo de incremento da versão
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+  deployments: write
+
+concurrency:
+  group: release-homol
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Somente main ou hotfix/*
+        if: github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/hotfix/')
+        run: |
+          echo "::error::release-homol só roda a partir de main ou hotfix/* (recebido: ${{ github.ref }})"
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      - id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: echo "version=$(bun scripts/next-version.ts "$BUMP")" >> "$GITHUB_OUTPUT"
+
+      - name: Criar tag + GitHub Release (pre-release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --generate-notes \
+            --prerelease
+
+  deploy:
+    needs: tag
+    runs-on: ubuntu-latest
+    environment:
+      name: homol
+      url: https://homol.${{ vars.CF_PAGES_PROJECT }}.pages.dev
+    concurrency:
+      group: deploy-homol
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.version }}
+
+      - uses: ./.github/actions/build-deploy
+        with:
+          environment: homol
+          pages-branch: homol
+          version: ${{ needs.tag.outputs.version }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          pages-project: ${{ vars.CF_PAGES_PROJECT }}

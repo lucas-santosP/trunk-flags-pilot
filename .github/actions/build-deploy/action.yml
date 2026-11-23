@@ -1,0 +1,48 @@
+name: Build and deploy to Cloudflare Pages
+description: Builda o app para um ambiente e publica no alias correspondente do Cloudflare Pages
+
+inputs:
+  environment:
+    description: dev | homol | production
+    required: true
+  pages-branch:
+    description: Branch do Cloudflare Pages (main = produção, demais = alias de preview)
+    required: true
+  version:
+    description: Versão exibida no app (tag ou sha curto)
+    required: true
+  cloudflare-api-token:
+    required: true
+  cloudflare-account-id:
+    required: true
+  pages-project:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+
+    - name: Install
+      shell: bash
+      run: bun install --frozen-lockfile
+
+    - name: Build
+      shell: bash
+      env:
+        APP_VERSION: ${{ inputs.version }}
+        COMMIT_SHA: ${{ github.sha }}
+      run: bun run build:${{ inputs.environment }}
+
+    - name: Deploy
+      shell: bash
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+      run: >
+        bunx wrangler pages deploy dist
+        --project-name "${{ inputs.pages-project }}"
+        --branch "${{ inputs.pages-branch }}"
+        --commit-hash "${{ github.sha }}"
+        --commit-message "${{ inputs.environment }} ${{ inputs.version }}"
+        --commit-dirty=true

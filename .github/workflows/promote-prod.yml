@@ -1,0 +1,92 @@
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_rollback:
+        description: Permitir promover uma tag mais antiga que a atual de produção (rollback)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  deployments: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Somente tags vX.Y.Z
+        if: github.ref_type != 'tag' || !startsWith(github.ref_name, 'v')
+        run: |
+          echo "::error::Rode este workflow escolhendo uma TAG (vX.Y.Z) em 'Use workflow from'. Recebido: ${{ github.ref }}"
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag precisa ter passado por homol com sucesso
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ids=$(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=homol&sha=$GITHUB_SHA" --jq '.[].id')
+          for id in $ids; do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" --jq '.[0].state')
+            if [ "$state" = "success" ]; then
+              echo "Deployment $id em homol com sucesso para $GITHUB_SHA"
+              exit 0
+            fi
+          done
+          echo "::error::$GITHUB_REF_NAME ($GITHUB_SHA) não tem deploy com sucesso em homol. Rode release-homol antes."
+          exit 1
+
+      - name: Bloquear rollback acidental
+        if: ${{ !inputs.allow_rollback }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=""
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=production" --jq '.[].id'); do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" --jq '.[0].state')
+            if [ "$state" = "success" ]; then
+              current=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id" --jq '.sha')
+              break
+            fi
+          done
+          if [ -z "$current" ]; then
+            echo "Primeiro deploy em produção."
+            exit 0
+          fi
+          if [ "$current" != "$GITHUB_SHA" ] && git merge-base --is-ancestor "$GITHUB_SHA" "$current"; then
+            echo "::error::$GITHUB_REF_NAME é mais antiga que a versão atual de produção ($current). Para rollback intencional, marque allow_rollback."
+            exit 1
+          fi
+          echo "OK: $GITHUB_REF_NAME não é regressão em relação a $current"
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.CF_PAGES_PROJECT }}.pages.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/build-deploy
+        with:
+          environment: production
+          pages-branch: main
+          version: ${{ github.ref_name }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          pages-project: ${{ vars.CF_PAGES_PROJECT }}
+
+      - name: Marcar release como latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --prerelease=false --latest

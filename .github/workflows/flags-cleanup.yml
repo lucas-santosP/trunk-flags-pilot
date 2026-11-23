@@ -1,0 +1,102 @@
+name: Flags cleanup
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'
+  workflow_dispatch:
+    inputs:
+      flag:
+        description: Remover uma flag específica (vazio = detectar automaticamente)
+        type: string
+        required: false
+      min_days:
+        description: Dias mínimos ligada em produção para considerar removível
+        type: number
+        default: 14
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: flags-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      - name: Detectar flags removíveis
+        id: detect
+        env:
+          INPUT_FLAG: ${{ inputs.flag }}
+          MIN_DAYS: ${{ inputs.min_days || 14 }}
+        run: |
+          if [ -n "$INPUT_FLAG" ]; then
+            echo "flags=$INPUT_FLAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "flags=$(bun scripts/flags-stale.ts --json --min-days="$MIN_DAYS" | jq -r '[.[].name] | join(" ")')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Abrir uma PR por flag
+        if: steps.detect.outputs.flags != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLAGS: ${{ steps.detect.outputs.flags }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for flag in $FLAGS; do
+            branch="chore/remove-flag-$flag"
+            if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+              echo "PR de remoção de $flag já existe, pulando."
+              continue
+            fi
+
+            owner=$(jq -r --arg flag "$flag" '.[$flag].owner // empty' flags/registry.json)
+            git switch --create "$branch" origin/main
+
+            bun scripts/flags-remove.ts "$flag" | tee removal-report.txt
+            bunx prettier --write src flags > /dev/null
+
+            checks="passaram"
+            if ! (bun run typecheck && bun run lint && bun run test); then
+              checks="FALHARAM: o codemod não resolveu tudo, termine à mão nesta branch"
+            fi
+
+            git add --all src flags
+            git commit --message "chore(flags): remove $flag"
+            git push --set-upstream origin "$branch"
+
+            {
+              echo "Remoção automática da release flag \`$flag\`: ligada em todos os ambientes além do prazo mínimo."
+              echo
+              echo "**Checks locais (typecheck, lint, testes):** $checks"
+              echo
+              echo '```'
+              cat removal-report.txt
+              echo '```'
+              echo
+              echo "Revise o diff (deve ser majoritariamente deleção). Esta PR segue o fluxo normal: main → dev → release-homol → promote-prod."
+              echo
+              echo "> PRs abertas pelo GITHUB_TOKEN não disparam o workflow de CI. Feche e reabra a PR para rodar o CI."
+            } > pr-body.md
+
+            gh pr create --base main --head "$branch" --title "chore(flags): remove $flag" --body-file pr-body.md
+            if [ -n "$owner" ]; then
+              gh pr edit "$branch" --add-reviewer "$owner" || echo "Não foi possível adicionar $owner como reviewer."
+            fi
+
+            rm -f removal-report.txt pr-body.md
+            git switch main
+          done
