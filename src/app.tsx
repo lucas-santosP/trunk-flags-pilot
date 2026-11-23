@@ -1,5 +1,6 @@
 import { EnvironmentBadge } from './environment-badge'
 import { LegacyGreeting } from './features/legacy-greeting/legacy-greeting'
+import { DigitalCard } from './features/digital-card/digital-card'
 import { WelcomeBanner } from './features/welcome-banner/welcome-banner'
 import { FlagsPanel } from './flags-panel'
 import { Feature } from './flags'
@@ -13,6 +14,9 @@ export function App() {
       </header>
       <Feature flag="bannerBoasVindas" fallback={<LegacyGreeting />}>
         <WelcomeBanner />
+      </Feature>
+      <Feature flag="cartaoDigital">
+        <DigitalCard />
       </Feature>
       <FlagsPanel />
     </main>

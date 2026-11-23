@@ -2,7 +2,11 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
-import { readEnvironmentFlags, resolveEnvironment } from './scripts/lib/flags-files.ts'
+import {
+  readAllEnvironmentFlags,
+  readEnvironmentFlags,
+  resolveEnvironment,
+} from './scripts/lib/flags-files.ts'
 
 export default defineConfig(function createConfig({ mode }) {
   const environment = resolveEnvironment(mode)
@@ -14,6 +18,7 @@ export default defineConfig(function createConfig({ mode }) {
       __APP_VERSION__: JSON.stringify(process.env.APP_VERSION ?? 'local'),
       __COMMIT_SHA__: JSON.stringify(process.env.COMMIT_SHA ?? 'local'),
       __FLAGS__: JSON.stringify(readEnvironmentFlags(environment)),
+      __FLAG_MATRIX__: JSON.stringify(readAllEnvironmentFlags()),
     },
     test: {
       environment: 'jsdom',
