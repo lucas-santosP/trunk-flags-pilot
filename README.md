@@ -96,4 +96,3 @@ Nada é mergeado sozinho: um humano revisa a PR. O que o codemod não resolver, 
 | `release-homol.yml` | manual (em `main` ou `hotfix/*`) | calcula versão, cria tag + pre-release, deploy homol com aprovação                |
 | `promote-prod.yml`  | manual **a partir de uma tag**   | valida homol + anti-regressão, deploy produção com aprovação, Release vira latest |
 | `flags-cleanup.yml` | segunda 12:00 UTC + manual       | abre PRs de remoção de flags                                                      |
-# trunk-flags-pilot
