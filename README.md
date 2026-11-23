@@ -63,7 +63,13 @@ As flags são lidas **no build** (`vite.config.ts` injeta o JSON do ambiente). M
 
 ### Ativar em produção
 
-PR **isolada** alterando só `flags/production.json` (`false` → `true`). O CI reprova se a PR misturar ativação com código. Depois do merge: `release-homol` → `promote-prod`.
+Fluxo automatizado em 3 passos:
+
+1. _Actions → Activate flag in production_ com o nome da flag. O workflow valida (release flag, ON em homol, OFF em produção), abre a PR isolada alterando só `flags/production.json`, com link para a PR original da feature e a última versão de homol, e dispara o CI.
+2. Revisar e fazer o merge da PR.
+3. _Fast-track production_ roda sozinho no merge: se a diferença entre o que está em homol e `main` for **só** `flags/production.json`, cria a tag e dispara _Promote to production_. Basta aprovar o deploy.
+
+Se outra mudança entrar em `main` antes, o fast-track não se aplica e vale o fluxo normal (`release-homol` → `promote-prod`). Desativar uma flag (rollback de feature) segue o mesmo caminho rápido: PR mudando `true` → `false`.
 
 ### Remoção (automática)
 
@@ -85,14 +91,17 @@ Nada é mergeado sozinho: um humano revisa a PR. O que o codemod não resolver, 
 | `bun run flags:check`                            | Consistência dos JSONs; com `BASE_REF=origin/main` valida regras de PR |
 | `bun run flags:stale`                            | Lista flags prontas para remoção (`--min-days=N`, `--json`)            |
 | `bun run flags:remove <flag>`                    | Codemod de remoção (local)                                             |
+| `bun run flags:activate <flag>`                  | Valida e liga a flag em `production.json` (local)                      |
 | `bun run lint` / `typecheck` / `test` / `format` | Qualidade                                                              |
 
 ## Workflows
 
-| Arquivo             | Gatilho                          | Faz                                                                               |
-| ------------------- | -------------------------------- | --------------------------------------------------------------------------------- |
-| `ci.yml`            | PR para `main`                   | flags:check, format, lint, typecheck, testes, build homol e produção              |
-| `deploy-dev.yml`    | push em `main`                   | build dev → Cloudflare Pages alias `dev`                                          |
-| `release-homol.yml` | manual (em `main` ou `hotfix/*`) | calcula versão, cria tag + pre-release, deploy homol com aprovação                |
-| `promote-prod.yml`  | manual **a partir de uma tag**   | valida homol + anti-regressão, deploy produção com aprovação, Release vira latest |
-| `flags-cleanup.yml` | segunda 12:00 UTC + manual       | abre PRs de remoção de flags                                                      |
+| Arquivo               | Gatilho                          | Faz                                                                               |
+| --------------------- | -------------------------------- | --------------------------------------------------------------------------------- |
+| `ci.yml`              | PR para `main`                   | flags:check, format, lint, typecheck, testes, build homol e produção              |
+| `deploy-dev.yml`      | push em `main`                   | build dev → Cloudflare Pages alias `dev`                                          |
+| `release-homol.yml`   | manual (em `main` ou `hotfix/*`) | calcula versão, cria tag + pre-release, deploy homol com aprovação                |
+| `promote-prod.yml`    | manual **a partir de uma tag**   | valida homol + anti-regressão, deploy produção com aprovação, Release vira latest |
+| `flags-cleanup.yml`   | segunda 12:00 UTC + manual       | abre PRs de remoção de flags                                                      |
+| `activate-flag.yml`   | manual                           | abre PR de ativação em produção e dispara o CI                                    |
+| `fast-track-prod.yml` | push em `main`                   | se só `production.json` mudou desde homol: cria tag e dispara `promote-prod`      |

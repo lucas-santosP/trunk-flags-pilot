@@ -40,11 +40,21 @@ Observe: as branches de feature vivem horas ou poucos dias, não semanas, e o co
 
 ## Cenário 3: ativação em produção
 
-Coberto no passo 6 do cenário 1. Repita com a flag de exemplo `bannerBoasVindas`:
+### 3a. Manual (feito com `bannerBoasVindas`)
 
-1. PR mudando só `flags/production.json` → `"bannerBoasVindas": true`.
+1. PR mudando só `flags/production.json` → `true`.
 2. Merge → `release-homol` → `promote-prod`.
-3. Confira a Release no GitHub: as notas geradas listam a PR de ativação.
+
+Achado: o passo de homol é cerimônia para ativação (homol já tinha a flag ON e o bundle de homol não muda).
+
+### 3b. Automatizado (activate-flag + fast-track)
+
+1. _Actions → Activate flag in production_ → `flag = cartaoDigital`.
+2. Revise a PR aberta pelo bot (link para a PR da feature, owner, versão de homol) e faça o merge.
+3. _Fast-track production_ cria a tag e dispara _Promote to production_ → aprovar.
+4. Confira a matriz de flags em produção: `cartaoDigital` passa para ON nas 3 colunas.
+
+Teste negativo: rode _Activate flag_ e, antes do merge da PR, faça o merge de outra PR com código. O fast-track deve pular, pedindo o fluxo normal.
 
 ## Cenário 4: hotfix
 
@@ -81,7 +91,7 @@ Observe: o `promote-prod` aceita a tag de hotfix (ela passou por homol) e o guar
 ## Cenário 5: remoção automática de flag
 
 1. Depois de ativar `rodapeNovo` em produção (cenário 1), rode _Actions → Flags cleanup → Run workflow_ com `flag = rodapeNovo` (não precisa esperar 14 dias).
-2. Abra a PR criada pelo bot. Feche e reabra a PR para disparar o CI (limitação do `GITHUB_TOKEN`).
+2. Abra a PR criada pelo bot. O CI é disparado pelo próprio workflow (`gh workflow run ci.yml`).
 3. Revise o diff: a flag sai dos 4 JSONs, o `<Feature>` vira só o componente novo e o rodapé antigo é apagado.
 4. Teste o caso difícil: crie uma flag usada de forma "criativa" (ex.: `const ligado = useFlag('x')` passado como prop para outro componente). Rode a remoção e veja o que o codemod resolve sozinho e o que sobra para fazer à mão, apontado pelo `tsc` ou pelo review.
 

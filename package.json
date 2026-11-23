@@ -19,6 +19,7 @@
     "flags:check": "bun scripts/flags-check.ts",
     "flags:stale": "bun scripts/flags-stale.ts",
     "flags:remove": "bun scripts/flags-remove.ts",
+    "flags:activate": "bun scripts/flags-activate.ts",
     "release:next-version": "bun scripts/next-version.ts"
   },
   "dependencies": {

@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: flags-cleanup
@@ -88,14 +89,13 @@ jobs:
               echo '```'
               echo
               echo "Revise o diff (deve ser majoritariamente deleção). Esta PR segue o fluxo normal: main → dev → release-homol → promote-prod."
-              echo
-              echo "> PRs abertas pelo GITHUB_TOKEN não disparam o workflow de CI. Feche e reabra a PR para rodar o CI."
             } > pr-body.md
 
             gh pr create --base main --head "$branch" --title "chore(flags): remove $flag" --body-file pr-body.md
             if [ -n "$owner" ]; then
               gh pr edit "$branch" --add-reviewer "$owner" || echo "Não foi possível adicionar $owner como reviewer."
             fi
+            gh workflow run ci.yml --ref "$branch"
 
             rm -f removal-report.txt pr-body.md
             git switch main

@@ -3,12 +3,13 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +26,7 @@ jobs:
 
       - name: Flags (consistência + regras de PR)
         env:
-          BASE_REF: origin/${{ github.base_ref }}
+          BASE_REF: origin/${{ github.base_ref || 'main' }}
         run: bun run flags:check
 
       - run: bun run format:check
