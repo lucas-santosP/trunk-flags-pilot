@@ -19,7 +19,7 @@ As features dos cenários são fictícias. Exemplos de mudanças pequenas: troca
 1. Branch `feat/rodape` a partir da `main`, PR contra `main`.
 2. CI verde → o robô monta **dev** com a PR. Confira o painel em dev: `#N ✓ no ar` em dev.
 3. Aplique o label `homol` → o robô pede aprovação do deploy de homol. Veja o resumo do run (PRs incluídas e motivo da aprovação) e aprove.
-4. Na PR, o status `homol-validado` fica verde.
+4. Na PR, o status `homol-published` fica verde.
 5. Merge → _Release production_ cria a tag e aguarda aprovação → aprove.
 6. Observe que homol e dev são remontados **sem pedir aprovação** (a PR saiu das PRs e passou a vir da main).
 
@@ -34,7 +34,7 @@ As features dos cenários são fictícias. Exemplos de mudanças pequenas: troca
 
 1. `feat/c` e `feat/d` alteram **a mesma linha** do banner.
 2. Label `homol` em C, depois em D.
-3. Esperado: C entra, D é pulada. Comentário em D: "conflita com #C em ...". Status `homol-validado` vermelho em D.
+3. Esperado: C entra, D é pulada. Comentário em D: "conflita com #C em ...". Status `homol-published` vermelho em D.
 4. Resolva: faça o merge de C, atualize D com a `main` e dê push → D entra na próxima montagem (pede aprovação: código novo).
 
 ## Cenário 4: build quebrado só na combinação
@@ -55,7 +55,7 @@ Pergunta para o diário: quanto tempo do push à produção, contando as 2 aprov
 ## Cenário 6: reprovação em homol
 
 1. PR com label `homol`, QA "reprova".
-2. Remova o label → homol volta ao estado anterior sem a feature, sem aprovação.
+2. Remova o label → homol volta ao estado anterior sem a feature, sem aprovação. O status `homol-published` da PR volta para pendente e o merge fica bloqueado.
 3. Corrija com push e reaplique o label.
 
 ## Cenário 7: rollback

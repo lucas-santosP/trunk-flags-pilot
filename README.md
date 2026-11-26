@@ -26,7 +26,7 @@ Ninguém faz PR para dev ou homol. **Uma PR por feature, sempre contra `main`.**
 | tirar a feature de dev            | converter a PR em draft                                    |
 | tirar a feature de homol          | remover o label `homol`                                    |
 | atualizar a feature nos ambientes | dar push na branch da PR (o robô remonta)                  |
-| levar a feature para produção     | merge da PR (exige `homol-validado`) e aprovar o deploy    |
+| levar a feature para produção     | merge da PR (exige `homol-published`) e aprovar o deploy   |
 | fazer rollback                    | _Actions → Rollback production_ a partir de uma tag antiga |
 
 ## Regras do robô (`env-sync`)
@@ -36,7 +36,7 @@ Ninguém faz PR para dev ou homol. **Uma PR por feature, sempre contra `main`.**
 3. **Conflito:** a PR que chega depois é pulada. O robô comenta na PR com quem ela conflita e marca o status vermelho. O ambiente sobe sem ela.
 4. **Build quebrado na combinação:** o robô remove as PRs na ordem inversa de entrada até o build passar e comenta nas removidas.
 5. **Aprovação de homol:** só quando entra código novo (PR nova ou commit novo). Quando só sai PR (merge, label removido), sobe sozinho. Commit na main que não passou por homol também exige aprovação.
-6. **Status `homol-validado`:** fica verde no commit da PR quando ele entra num deploy de homol. É check obrigatório para o merge. Um push novo zera o status até a próxima montagem.
+6. **Status `homol-published`:** fica verde no commit da PR quando ele entra num deploy de homol. É check obrigatório para o merge. Significa "este commit está publicado em homol", **não** "validado pelo QA". Um push novo zera o status até a próxima montagem, e a PR que sai de homol (label removido, draft) volta para pendente. Em dev, o mesmo vale para `dev-published` (informativo, não obrigatório).
 7. **Dev opcional:** `ENV_DEV_ENABLED=false` desliga a montagem de dev.
 
 As branches `env/dev` e `env/homol` são publicadas para inspeção (`git checkout env/homol`) e contêm `env-manifest.json` com o que foi montado. A atualização delas é best-effort: o `GITHUB_TOKEN` não pode publicar mudanças em `.github/workflows`, então uma PR que mexe em workflow não atualiza a branch (o deploy acontece normalmente).
