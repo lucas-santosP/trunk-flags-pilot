@@ -7,16 +7,12 @@ import type { CommitState } from './lib/github.ts'
 import {
   commitStatusState,
   currentRepository,
+  currentRunUrl,
   fetchOpenPullRequests,
   setCommitStatus,
   upsertMarkedComment,
 } from './lib/github.ts'
 import { pullRequestsOutsideEnvironment, STATUS_CONTEXTS } from './lib/env-status.ts'
-
-function runUrl(): string {
-  const server = process.env.GITHUB_SERVER_URL ?? 'https://github.com'
-  return `${server}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
-}
 
 function pushEnvironmentBranch(manifest: EnvManifest): void {
   fetchPullRequestHeads(manifest.included)
@@ -42,7 +38,7 @@ function report(manifest: EnvManifest, version: string): void {
   const repository = currentRepository()
   const context = STATUS_CONTEXTS[manifest.environment]
   const marker = `<!-- env-sync:${manifest.environment} -->`
-  const targetUrl = runUrl()
+  const targetUrl = currentRunUrl()
 
   for (const pullRequest of manifest.included) {
     setCommitStatus(
@@ -57,7 +53,7 @@ function report(manifest: EnvManifest, version: string): void {
       repository,
       pullRequest.number,
       marker,
-      `✅ Incluída em **${manifest.environment}** no deploy \`${version}\` (commit \`${pullRequest.headSha.slice(0, 7)}\`).`,
+      `✅ Incluída em **${manifest.environment}** no deploy \`${version}\` (commit \`${pullRequest.headSha.slice(0, 7)}\`) · [run](${targetUrl})`,
       false,
     )
   }
@@ -76,7 +72,7 @@ function report(manifest: EnvManifest, version: string): void {
       repository,
       pullRequest.number,
       marker,
-      `⚠️ Não entrou em **${manifest.environment}** no deploy \`${version}\`: ${pullRequest.detail}.\n\nResolva e faça push: o ambiente é remontado automaticamente.`,
+      `⚠️ Não entrou em **${manifest.environment}** no deploy \`${version}\`: ${pullRequest.detail}.\n\nResolva e faça push: o ambiente é remontado automaticamente. [Ver run](${targetUrl})`,
       true,
     )
   }

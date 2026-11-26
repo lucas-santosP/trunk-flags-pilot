@@ -27,6 +27,21 @@ export function currentRepository(): string {
   return repository
 }
 
+export function currentRunUrl(): string {
+  const server = process.env.GITHUB_SERVER_URL ?? 'https://github.com'
+  return `${server}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+}
+
+export function latestPublishedReleaseTag(repository: string): string | null {
+  try {
+    return (
+      gh(['release', 'view', '-R', repository, '--json', 'tagName', '--jq', '.tagName']) || null
+    )
+  } catch {
+    return null
+  }
+}
+
 const OPEN_PULL_REQUESTS_QUERY = `
 query($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {

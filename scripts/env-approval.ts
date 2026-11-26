@@ -1,7 +1,7 @@
 import { appendFileSync, readFileSync } from 'node:fs'
 
 import type { EnvManifest, ManifestPullRequest } from '../shared/env-manifest.ts'
-import { evaluateApproval } from './lib/env-approval.ts'
+import { evaluateApproval, newPullRequests } from './lib/env-approval.ts'
 import type { MainCommit } from './lib/env-approval.ts'
 import { firstParentCommits, isAncestor, tryGit } from './lib/git.ts'
 import { currentRepository, mainCommitFor } from './lib/github.ts'
@@ -114,6 +114,11 @@ async function main(): Promise<void> {
   writeOutputs({
     changed: String(decision.changed),
     approval_required: String(approvalRequired),
+    new_pull_requests: newPullRequests(next, previous)
+      .map(function toNumber(pullRequest) {
+        return pullRequest.number
+      })
+      .join(','),
   })
 }
 
