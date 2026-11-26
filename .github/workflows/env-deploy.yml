@@ -1,0 +1,131 @@
+name: Env deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: dev | homol
+        type: string
+        required: true
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      statuses: read
+    concurrency:
+      group: env-assemble-${{ inputs.environment }}
+      cancel-in-progress: true
+    outputs:
+      changed: ${{ steps.approval.outputs.changed }}
+      approval_required: ${{ steps.approval.outputs.approval_required }}
+      version: ${{ steps.version.outputs.version }}
+      main_sha: ${{ steps.version.outputs.main_sha }}
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      TOOLS: ${{ runner.temp }}/env-tools
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Copiar scripts confiáveis da main
+        run: |
+          mkdir -p "$TOOLS"
+          cp -r scripts shared "$TOOLS"/
+
+      - name: Identidade do robô
+        run: |
+          git config user.name "env-sync[bot]"
+          git config user.email "env-sync@users.noreply.github.com"
+
+      - id: version
+        run: |
+          main_sha=$(git rev-parse HEAD)
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
+          echo "version=$ENVIRONMENT-${main_sha::7}-r$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Planejar (PRs candidatas e ordem)
+        env:
+          ENV_REQUIRE_APPROVED_REVIEW: ${{ vars.ENV_REQUIRE_APPROVED_REVIEW }}
+        run: bun "$TOOLS/scripts/env-plan.ts" "$ENVIRONMENT" "$RUNNER_TEMP/plan.json"
+
+      - name: Montar e buildar (remove PRs que quebram o build)
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+        run: bun "$TOOLS/scripts/env-assemble.ts" "$RUNNER_TEMP/plan.json" "$RUNNER_TEMP/manifest.json"
+
+      - name: Decidir deploy e aprovação
+        id: approval
+        env:
+          PREVIOUS_MANIFEST_URL: https://${{ inputs.environment }}.${{ vars.CF_PAGES_PROJECT }}.pages.dev/manifest.json
+        run: bun "$TOOLS/scripts/env-approval.ts" "$RUNNER_TEMP/manifest.json" "$PREVIOUS_MANIFEST_URL"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: env-${{ inputs.environment }}
+          path: dist
+          retention-days: 3
+
+  deploy:
+    needs: assemble
+    if: needs.assemble.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      statuses: write
+      pull-requests: write
+      issues: write
+      deployments: write
+    concurrency:
+      group: env-deploy-${{ inputs.environment }}
+      cancel-in-progress: true
+    environment:
+      name: ${{ inputs.environment == 'homol' && (needs.assemble.outputs.approval_required == 'true' && 'homol' || 'homol-sync') || 'dev' }}
+      url: https://${{ inputs.environment }}.${{ vars.CF_PAGES_PROJECT }}.pages.dev
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: env-${{ inputs.environment }}
+          path: ${{ runner.temp }}/artifact
+
+      - name: Localizar build e manifesto
+        run: |
+          echo "DIST=$RUNNER_TEMP/artifact" >> "$GITHUB_ENV"
+          echo "MANIFEST=$RUNNER_TEMP/artifact/manifest.json" >> "$GITHUB_ENV"
+
+      - uses: ./.github/actions/pages-deploy
+        with:
+          directory: ${{ env.DIST }}
+          pages-branch: ${{ inputs.environment }}
+          commit-hash: ${{ needs.assemble.outputs.main_sha }}
+          commit-message: ${{ inputs.environment }} ${{ needs.assemble.outputs.version }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          pages-project: ${{ vars.CF_PAGES_PROJECT }}
+
+      - name: Identidade do robô
+        run: |
+          git config user.name "env-sync[bot]"
+          git config user.email "env-sync@users.noreply.github.com"
+
+      - name: Atualizar env/<ambiente>, status e comentários nas PRs
+        run: |
+          mkdir -p "$RUNNER_TEMP/env-tools"
+          cp -r scripts shared "$RUNNER_TEMP/env-tools"/
+          bun "$RUNNER_TEMP/env-tools/scripts/env-publish.ts" "$MANIFEST" "${{ needs.assemble.outputs.version }}"

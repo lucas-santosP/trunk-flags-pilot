@@ -24,18 +24,16 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - name: Flags (consistência + regras de PR)
-        env:
-          BASE_REF: origin/${{ github.base_ref || 'main' }}
-        run: bun run flags:check
-
       - run: bun run format:check
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
 
-      - name: Build com flags de homol
+      - name: Build homol
         run: bun run build:homol
 
-      - name: Build com flags de produção
+      - name: Build de produção
         run: bun run build:production
+
+      - name: Produção sem painel nem manifesto
+        run: bun run check:production-bundle

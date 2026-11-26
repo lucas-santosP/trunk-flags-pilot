@@ -1,0 +1,47 @@
+name: Deploy to Cloudflare Pages
+description: Publica um dist já buildado no alias correspondente do Cloudflare Pages
+
+inputs:
+  directory:
+    description: Pasta com o build
+    default: dist
+  pages-branch:
+    description: Branch do Cloudflare Pages (main = produção, demais = alias)
+    required: true
+  commit-hash:
+    required: true
+  commit-message:
+    required: true
+  cloudflare-api-token:
+    required: true
+  cloudflare-account-id:
+    required: true
+  pages-project:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+
+    - name: Install (deps da main, sem scripts de instalação)
+      shell: bash
+      run: bun install --frozen-lockfile --ignore-scripts
+
+    - name: Deploy
+      shell: bash
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        DIRECTORY: ${{ inputs.directory }}
+        PAGES_PROJECT: ${{ inputs.pages-project }}
+        PAGES_BRANCH: ${{ inputs.pages-branch }}
+        COMMIT_HASH: ${{ inputs.commit-hash }}
+        COMMIT_MESSAGE: ${{ inputs.commit-message }}
+      run: >
+        bunx wrangler pages deploy "$DIRECTORY"
+        --project-name "$PAGES_PROJECT"
+        --branch "$PAGES_BRANCH"
+        --commit-hash "$COMMIT_HASH"
+        --commit-message "$COMMIT_MESSAGE"
+        --commit-dirty=true

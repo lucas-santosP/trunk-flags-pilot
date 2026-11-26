@@ -19,11 +19,9 @@ export function DigitalCard() {
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium tracking-wide text-emerald-600 uppercase">Nova feature</p>
+        <p className="text-sm font-medium tracking-wide text-emerald-600 uppercase">Feature</p>
         <h2 className="text-xl font-semibold">Seu cartão, agora no app</h2>
-        <p className="text-slate-600 dark:text-slate-400">
-          Atrás da flag <code className="font-mono">cartaoDigital</code>. Dados 100% fictícios.
-        </p>
+        <p className="text-slate-600 dark:text-slate-400">Dados 100% fictícios.</p>
       </div>
     </section>
   )
