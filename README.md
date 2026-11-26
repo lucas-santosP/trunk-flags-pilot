@@ -1,107 +1,87 @@
-# Trunk Flags Pilot
+# Branch Envs Pilot
 
-Piloto pessoal do **Modelo T: trunk-based development + feature flags** para 3 ambientes (dev, homol, production). App fictício, sem nenhum código, configuração ou dado de empresa.
+Piloto pessoal do **Modelo R: ambientes montados a partir de PRs** para 3 ambientes (dev, homol, production). App fictício, sem nenhum código, configuração ou dado de empresa.
+
+O piloto anterior (Modelo T, trunk-based + feature flags) está preservado na tag `modelo-t-final` e na branch `archive/modelo-t`.
 
 - Setup das contas: [docs/SETUP.md](docs/SETUP.md)
-- Roteiro de cenários do piloto: [docs/PILOT.md](docs/PILOT.md)
+- Roteiro de cenários: [docs/PILOT.md](docs/PILOT.md)
 
-## Fluxo
+## Ideia central
+
+`main` é produção. `env/dev` e `env/homol` **não são branches de trabalho**: um robô as recria do zero sempre que algo muda.
 
 ```text
-feat/x ──PR──▶ main ──auto──▶ dev
-                 │
-   release-homol (gera tag vX.Y.Z + GitHub pre-release) ──aprovação──▶ homol
-                                                                         │ tester valida
-   promote-prod (rodado a partir da tag) ──aprovação──▶ production ──▶ Release vira "latest"
+env/dev   = main + PRs com review aprovado (as de homol primeiro)
+env/homol = main + PRs com label "homol"
+prod      = main (cada merge gera uma release que aguarda aprovação)
 ```
 
-| Ambiente   | Origem                              | Gate                | URL                                 |
-| ---------- | ----------------------------------- | ------------------- | ----------------------------------- |
-| dev        | todo push em `main`                 | só o review da PR   | `https://dev.<projeto>.pages.dev`   |
-| homol      | workflow `release-homol` (cria tag) | aprovação no GitHub | `https://homol.<projeto>.pages.dev` |
-| production | workflow `promote-prod` (na tag)    | aprovação no GitHub | `https://<projeto>.pages.dev`       |
+Ninguém faz PR para dev ou homol. **Uma PR por feature, sempre contra `main`.**
 
-Regras fixas:
+| Quero...                          | Faço                                                       |
+| --------------------------------- | ---------------------------------------------------------- |
+| colocar a feature em dev          | abrir a PR (não draft) e ter o review aprovado             |
+| colocar a feature em homol        | aplicar o label `homol` e aprovar o deploy no GitHub       |
+| tirar a feature de dev            | converter a PR em draft                                    |
+| tirar a feature de homol          | remover o label `homol`                                    |
+| atualizar a feature nos ambientes | dar push na branch da PR (o robô remonta)                  |
+| levar a feature para produção     | merge da PR (exige `homol-validado`) e aprovar o deploy    |
+| fazer rollback                    | _Actions → Rollback production_ a partir de uma tag antiga |
 
-- Só existe `main` + branches curtas de feature. **Uma PR por feature, sempre contra `main`.**
-- `promote-prod` só aceita uma tag que já teve deploy com sucesso em homol, e bloqueia regressão acidental (rollback exige marcar `allow_rollback`).
-- Hotfix padrão: fix-forward por `main`. Exceção: branch `hotfix/*` criada a partir da tag de produção (ver [docs/PILOT.md](docs/PILOT.md), cenário 4).
+## Regras do robô (`env-sync`)
 
-## Feature flags
+1. **Quem entra:** PRs abertas contra `main`, não draft, do próprio repo, com CI verde e review aprovado (`ENV_REQUIRE_APPROVED_REVIEW=false` desliga a exigência de review, útil quando se está sozinho). CI pendente fica "aguardando".
+2. **Ordem:** ordem de entrada no ambiente (homol: quando o label foi aplicado; dev: PRs de homol primeiro, depois pela data da aprovação). Quem já está no ambiente não sai por causa de quem chegou depois.
+3. **Conflito:** a PR que chega depois é pulada. O robô comenta na PR com quem ela conflita e marca o status vermelho. O ambiente sobe sem ela.
+4. **Build quebrado na combinação:** o robô remove as PRs na ordem inversa de entrada até o build passar e comenta nas removidas.
+5. **Aprovação de homol:** só quando entra código novo (PR nova ou commit novo). Quando só sai PR (merge, label removido), sobe sozinho. Commit na main que não passou por homol também exige aprovação.
+6. **Status `homol-validado`:** fica verde no commit da PR quando ele entra num deploy de homol. É check obrigatório para o merge. Um push novo zera o status até a próxima montagem.
+7. **Dev opcional:** `ENV_DEV_ENABLED=false` desliga a montagem de dev.
 
-Arquivos em `flags/`:
+As branches `env/dev` e `env/homol` são publicadas para inspeção (`git checkout env/homol`) e contêm `env-manifest.json` com o que foi montado. A atualização delas é best-effort: o `GITHUB_TOKEN` não pode publicar mudanças em `.github/workflows`, então uma PR que mexe em workflow não atualiza a branch (o deploy acontece normalmente).
 
-| Arquivo           | Conteúdo                                                                            |
-| ----------------- | ----------------------------------------------------------------------------------- |
-| `registry.json`   | Metadados de cada flag: `type` (`release`/`ops`), `owner`, `created`, `description` |
-| `dev.json`        | `true`/`false` por flag no build de dev                                             |
-| `homol.json`      | idem para homol                                                                     |
-| `production.json` | idem para produção (protegido por CODEOWNERS)                                       |
+## Produção
 
-As flags são lidas **no build** (`vite.config.ts` injeta o JSON do ambiente). Mudar uma flag = PR + deploy.
+- Cada merge na `main` cria a tag `vX.Y.Z` (patch, ou `minor`/`major` com o label `release:minor`/`release:major` na PR) como pre-release, e o deploy aguarda aprovação no environment `production`.
+- Merges seguidos substituem a release pendente: o aprovador aprova uma vez a mais nova, que contém tudo.
+- Merge na `main` **não** sobe sozinho: a aprovação do deploy é o gate de produção, como no processo atual da empresa.
 
-### Criar uma feature com flag
+## Painel de ambientes
 
-1. Adicione a flag em `flags/registry.json` e nos 3 JSONs de ambiente:
-   - `dev.json` e `homol.json`: `true`
-   - `production.json`: `false` (o CI reprova se nascer `true`)
-2. No código, use **apenas** a API de `src/flags`:
+Dev e homol mostram uma matriz **PR × ambiente** (✓ no ar, ⚠ pulada com motivo, … aguardando CI, — fora).
 
-   ```tsx
-   <Feature flag="novoCheckout" fallback={<CheckoutAtual />}>
-     <NovoCheckout />
-   </Feature>
-   ```
-
-   ```ts
-   const novoCheckout = useFlag('novoCheckout')
-   ```
-
-   O tipo `FlagName` é gerado de `registry.json`: nome errado não compila. O ESLint proíbe ler os JSONs ou `__FLAGS__` fora de `src/flags`.
-
-3. Abra a PR contra `main`.
-
-### Ativar em produção
-
-Fluxo automatizado em 3 passos:
-
-1. _Actions → Activate flag in production_ com o nome da flag. O workflow valida (release flag, ON em homol, OFF em produção), abre a PR isolada alterando só `flags/production.json`, com link para a PR original da feature e a última versão de homol, e dispara o CI.
-2. Revisar e fazer o merge da PR.
-3. _Fast-track production_ roda sozinho no merge: se a diferença entre o que está em homol e `main` for **só** `flags/production.json`, cria a tag e dispara _Promote to production_. Basta aprovar o deploy.
-
-Se outra mudança entrar em `main` antes, o fast-track não se aplica e vale o fluxo normal (`release-homol` → `promote-prod`). Desativar uma flag (rollback de feature) segue o mesmo caminho rápido: PR mudando `true` → `false`.
-
-### Remoção (automática)
-
-O workflow `flags-cleanup` roda toda segunda-feira. Ele detecta release flags `true` em todos os ambientes há 14 dias ou mais (a data vem do `git log` de `production.json`) e abre uma PR por flag rodando o codemod `scripts/flags-remove.ts`. O codemod:
-
-- remove a flag dos 4 JSONs;
-- troca `<Feature flag="x">` pelos children;
-- troca `useFlag('x')` / `isFlagEnabled('x')` por `true` e simplifica `if`/ternário/`&&`;
-- apaga o componente do `fallback` quando ele não tem outros usos.
-
-Nada é mergeado sozinho: um humano revisa a PR. O que o codemod não resolver, o `tsc` aponta (a flag some do tipo `FlagName`). Flags `type: "ops"` (kill switches permanentes) nunca são removidas automaticamente.
-
-## Scripts
-
-| Comando                                          | O que faz                                                              |
-| ------------------------------------------------ | ---------------------------------------------------------------------- |
-| `bun dev`                                        | App local com flags de dev                                             |
-| `bun run build:<env>`                            | Build com as flags e `.env.<env>` do ambiente                          |
-| `bun run flags:check`                            | Consistência dos JSONs; com `BASE_REF=origin/main` valida regras de PR |
-| `bun run flags:stale`                            | Lista flags prontas para remoção (`--min-days=N`, `--json`)            |
-| `bun run flags:remove <flag>`                    | Codemod de remoção (local)                                             |
-| `bun run flags:activate <flag>`                  | Valida e liga a flag em `production.json` (local)                      |
-| `bun run lint` / `typecheck` / `test` / `format` | Qualidade                                                              |
+- Cada ambiente montado publica `/manifest.json`. Produção publica **apenas** `/version.json` (`environment`, `version`, `sha`).
+- O painel **não existe em produção**: o código fica atrás de `__APP_ENV__ !== 'production'` (removido do bundle pelo Vite) e o `check:production-bundle` falha o CI e o deploy se o build de produção contiver o painel ou o manifesto.
+- Os títulos das PRs aparecem em dev e homol. Na empresa, esses ambientes precisam ser internos (ou protegidos).
 
 ## Workflows
 
-| Arquivo               | Gatilho                          | Faz                                                                               |
-| --------------------- | -------------------------------- | --------------------------------------------------------------------------------- |
-| `ci.yml`              | PR para `main`                   | flags:check, format, lint, typecheck, testes, build homol e produção              |
-| `deploy-dev.yml`      | push em `main`                   | build dev → Cloudflare Pages alias `dev`                                          |
-| `release-homol.yml`   | manual (em `main` ou `hotfix/*`) | calcula versão, cria tag + pre-release, deploy homol com aprovação                |
-| `promote-prod.yml`    | manual **a partir de uma tag**   | valida homol + anti-regressão, deploy produção com aprovação, Release vira latest |
-| `flags-cleanup.yml`   | segunda 12:00 UTC + manual       | abre PRs de remoção de flags                                                      |
-| `activate-flag.yml`   | manual                           | abre PR de ativação em produção e dispara o CI                                    |
-| `fast-track-prod.yml` | push em `main`                   | se só `production.json` mudou desde homol: cria tag e dispara `promote-prod`      |
+| Workflow              | Gatilho                                                           | O que faz                                                   |
+| --------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| `ci.yml`              | PR                                                                | format, lint, typecheck, testes, builds, checagem de prod   |
+| `env-sync.yml`        | push na main, label, draft, review, fim do CI, PR fechada, manual | monta dev e homol via `env-deploy.yml`                      |
+| `env-sync-review.yml` | review submetido ou descartado                                    | dispara o `env-sync` na `main`                              |
+| `env-deploy.yml`      | chamado pelo `env-sync`                                           | planeja, monta, builda, decide aprovação, publica e reporta |
+| `release-prod.yml`    | push na main                                                      | tag + pre-release + deploy de produção com aprovação        |
+| `rollback-prod.yml`   | manual, a partir de uma tag                                       | redeploy de uma tag antiga em produção (pede `ROLLBACK`)    |
+
+## Scripts
+
+| Script                                            | Uso                                                         |
+| ------------------------------------------------- | ----------------------------------------------------------- |
+| `bun run env:plan <env> <saída>`                  | lista candidatas, puladas e aguardando (lê a API do GitHub) |
+| `bun run env:assemble <plano> <manifesto>`        | monta e builda com remoção automática                       |
+| `bun run env:approval <manifesto> <url-anterior>` | decide se há mudança e se precisa aprovação                 |
+| `bun run env:publish <manifesto> <versão>`        | atualiza `env/<env>`, status e comentários                  |
+| `bun run check:production-bundle`                 | garante que o build de produção não tem painel/manifesto    |
+| `bun run release:next-version <bump>`             | próxima tag                                                 |
+
+Os scripts de montagem rodam a partir de uma cópia feita **da main** antes de montar: uma PR não consegue alterar as regras que a avaliam.
+
+## Segurança (registro)
+
+- O código das PRs é buildado num job **sem secrets e com token só de leitura**. O token do Cloudflare só existe no job de deploy, que publica o `dist` já pronto.
+- Só entram PRs do próprio repositório (forks são ignorados) e com review aprovado.
+- Todo deploy de dev e homol roda com a ref `main` (os environments só aceitam `main`). Review de PR, que no GitHub roda com a ref da PR, apenas dispara o `env-sync` na `main` via `env-sync-review.yml`.
+- Os `.env.<ambiente>` contêm só URLs fictícias (`.invalid`).

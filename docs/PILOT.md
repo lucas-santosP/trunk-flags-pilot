@@ -1,141 +1,78 @@
-# Roteiro do piloto
+# Roteiro do piloto (Modelo R)
 
-Objetivo: sentir na prática se o Modelo T resolve os problemas do modelo atual (3 PRs por feature, branches `-dev`/`-homol`, divergência entre homol e main) e quanto custa operá-lo.
+Objetivo: verificar se montar dev e homol a partir de PRs elimina os conflitos de branches de ambiente e as PRs de promoção, e quanto custa operar.
 
-Pré-requisito: [SETUP.md](SETUP.md) concluído, com o smoke test verde.
+Pré-requisito: [SETUP.md](SETUP.md), seção "Modelo R", concluída.
 
-Para cada cenário, anote no final deste arquivo:
+Para cada cenário, anote no diário no final:
 
-- quantas PRs e branches foram necessárias (comparando com o modelo atual);
-- se houve conflito;
+- quantas PRs e cliques foram necessários (comparando com o modelo atual de 3 PRs);
+- se houve conflito e como foi resolvido;
 - o que foi estranho ou confuso.
 
----
-
-## Cenário 1: duas features em paralelo, só uma aprovada
-
-Simula o caso mais comum: dois devs, duas PRs independentes, homol aprova só uma.
-
-1. Crie `feat/rodape-novo` com a flag `rodapeNovo` (dev/homol `true`, produção `false`). Ela troca um rodapé simples por um novo, usando `<Feature>`.
-2. Crie `feat/tema-escuro-toggle` com a flag `temaToggle`, mesmas regras.
-3. Abra as 2 PRs contra `main` e faça o merge das duas. Confirme que dev mostra as duas.
-4. Rode `release-homol` (`minor`) e aprove. Homol mostra as duas.
-5. Finja que o tester **aprovou `rodapeNovo` e reprovou `temaToggle`**.
-6. Abra uma PR isolada mudando só `rodapeNovo` para `true` em `flags/production.json`. Merge → `release-homol` → `promote-prod` na nova tag.
-7. Verifique em produção: rodapé novo **visível**, toggle de tema **invisível** (o código está lá, desligado).
-
-Observe: nenhuma branch `-dev`/`-homol`, nenhum conflito, e a feature reprovada não bloqueou a aprovada.
-
-Teste extra: abra uma PR que ativa `temaToggle` em produção **e** altera um arquivo em `src/`. O CI deve reprovar com "PR isolada".
-
-## Cenário 2: feature grande em validação longa
-
-Simula o caso que hoje gera as branches por ambiente.
-
-1. Crie `feat/painel-grande` com a flag `painelGrande`. Faça **3 PRs pequenas** ao longo de alguns dias, todas atrás da mesma flag (não precisa terminar a feature para mergear).
-2. Entre essas PRs, crie e entregue em produção **outras 2 features pequenas** (repetindo o cenário 1).
-3. Verifique que `painelGrande` nunca bloqueou nada e nunca exigiu branch extra.
-
-Observe: as branches de feature vivem horas ou poucos dias, não semanas, e o conflito fica restrito a quem mexe no mesmo arquivo.
-
-## Cenário 3: ativação em produção
-
-### 3a. Manual (feito com `bannerBoasVindas`)
-
-1. PR mudando só `flags/production.json` → `true`.
-2. Merge → `release-homol` → `promote-prod`.
-
-Achado: o passo de homol é cerimônia para ativação (homol já tinha a flag ON e o bundle de homol não muda).
-
-### 3b. Automatizado (activate-flag + fast-track)
-
-1. _Actions → Activate flag in production_ → `flag = cartaoDigital`.
-2. Revise a PR aberta pelo bot (link para a PR da feature, owner, versão de homol) e faça o merge.
-3. _Fast-track production_ cria a tag e dispara _Promote to production_ → aprovar.
-4. Confira a matriz de flags em produção: `cartaoDigital` passa para ON nas 3 colunas.
-
-Teste negativo: rode _Activate flag_ e, antes do merge da PR, faça o merge de outra PR com código. O fast-track deve pular, pedindo o fluxo normal.
-
-## Cenário 4: hotfix
-
-### 4a. Padrão: fix-forward por main
-
-1. Introduza um "bug" visível em produção (ex.: texto errado no cabeçalho) e leve até produção.
-2. Enquanto isso, deixe em `main` pelo menos uma feature com flag desligada em produção.
-3. Corrija o bug em uma PR → merge → `release-homol` (`patch`) → `promote-prod`.
-4. Confirme: a correção chegou e a feature desligada continuou invisível.
-
-### 4b. Exceção: branch de hotfix a partir da tag
-
-Use quando `main` tiver algo que não pode ir para produção nem desligado.
-
-1. Suponha que produção está em `vA.B.C` e `main` está à frente.
-2. Crie a branch a partir da tag:
-
-   ```bash
-   git switch --create hotfix/texto-cabecalho vA.B.C
-   ```
-
-3. Corrija, faça o commit e o push da branch `hotfix/*`.
-4. Rode `release-homol` escolhendo a branch `hotfix/texto-cabecalho` (`patch`). Ele gera `vA.B.(C+1)` a partir da tag mais próxima dessa branch.
-5. Aprove homol → `promote-prod` a partir da nova tag.
-6. Leve o fix para `main` com cherry-pick em uma PR normal:
-
-   ```bash
-   git switch --create fix/texto-cabecalho origin/main
-   git cherry-pick <sha-do-fix>
-   ```
-
-Observe: o `promote-prod` aceita a tag de hotfix (ela passou por homol) e o guard anti-regressão não bloqueia.
-
-## Cenário 5: remoção automática de flag
-
-1. Depois de ativar `rodapeNovo` em produção (cenário 1), rode _Actions → Flags cleanup → Run workflow_ com `flag = rodapeNovo` (não precisa esperar 14 dias).
-2. Abra a PR criada pelo bot. O CI é disparado pelo próprio workflow (`gh workflow run ci.yml`).
-3. Revise o diff: a flag sai dos 4 JSONs, o `<Feature>` vira só o componente novo e o rodapé antigo é apagado.
-4. Teste o caso difícil: crie uma flag usada de forma "criativa" (ex.: `const ligado = useFlag('x')` passado como prop para outro componente). Rode a remoção e veja o que o codemod resolve sozinho e o que sobra para fazer à mão, apontado pelo `tsc` ou pelo review.
-
-Para testar localmente, antes do workflow:
-
-```bash
-bun run flags:stale -- --min-days=0
-bun run flags:remove rodapeNovo
-bun run typecheck && bun run lint && bun run test
-git restore . && git clean -fd src
-```
-
-## Cenário 6: rollback
-
-### 6a. Desligar a flag
-
-1. Com uma feature ativa em produção, abra uma PR isolada voltando a flag para `false` em `production.json`.
-2. Merge → `release-homol` → `promote-prod`. Meça o tempo total.
-
-### 6b. Voltar uma versão inteira
-
-1. Rode `promote-prod` a partir de uma tag **mais antiga** que a atual. O guard deve **bloquear**.
-2. Rode de novo com `allow_rollback = true`. Deve passar (após a aprovação).
-
-Observe: o 6a é o rollback normal no Modelo T. O 6b é emergência. Com flags lidas no build, os dois levam minutos. Flags em runtime (opção B, fora deste piloto) levariam segundos.
+As features dos cenários são fictícias. Exemplos de mudanças pequenas: trocar o texto do banner, adicionar um rodapé, mudar a cor do cartão.
 
 ---
 
-## Diário do piloto
+## Cenário 1: feature normal
 
-| Cenário | PRs (atual vs T) | Branches (atual vs T) | Conflitos | Tempo | Estranhezas |
-| ------- | ---------------- | --------------------- | --------- | ----- | ----------- |
-| 1       |                  |                       |           |       |             |
-| 2       |                  |                       |           |       |             |
-| 3       |                  |                       |           |       |             |
-| 4a      |                  |                       |           |       |             |
-| 4b      |                  |                       |           |       |             |
-| 5       |                  |                       |           |       |             |
-| 6       |                  |                       |           |       |             |
+1. Branch `feat/rodape` a partir da `main`, PR contra `main`.
+2. CI verde → o robô monta **dev** com a PR. Confira o painel em dev: `#N ✓ no ar` em dev.
+3. Aplique o label `homol` → o robô pede aprovação do deploy de homol. Veja o resumo do run (PRs incluídas e motivo da aprovação) e aprove.
+4. Na PR, o status `homol-validado` fica verde.
+5. Merge → _Release production_ cria a tag e aguarda aprovação → aprove.
+6. Observe que homol e dev são remontados **sem pedir aprovação** (a PR saiu das PRs e passou a vir da main).
 
-## Perguntas para decidir depois do piloto
+## Cenário 2: duas features em homol, só uma vai para produção
 
-- O custo de criar e usar flags é menor que o de manter branches `-dev`/`-homol`?
-- Ativar em produção via PR + release + promote é rápido o suficiente, ou é preciso flags em runtime?
-- O codemod resolveu a maioria das remoções sem trabalho manual?
-- O tester consegue entender o que está ligado em homol? O painel "Flags neste build" ajuda?
-- O que precisaria mudar para levar ao `web-sales-portal` (S3 + CloudFront, GitHub Environments da empresa)?
+1. Duas PRs (`feat/a`, `feat/b`) com o label `homol`, mexendo em arquivos diferentes.
+2. As duas aparecem em homol.
+3. Merge só da `feat/b` → produção recebe só B. A continua em homol.
+4. Remova o label de A → homol remontado sem A, **sem aprovação** (só saiu código).
+
+## Cenário 3: conflito entre duas PRs
+
+1. `feat/c` e `feat/d` alteram **a mesma linha** do banner.
+2. Label `homol` em C, depois em D.
+3. Esperado: C entra, D é pulada. Comentário em D: "conflita com #C em ...". Status `homol-validado` vermelho em D.
+4. Resolva: faça o merge de C, atualize D com a `main` e dê push → D entra na próxima montagem (pede aprovação: código novo).
+
+## Cenário 4: build quebrado só na combinação
+
+1. `feat/e` renomeia um componente (ex.: `DigitalCard` → `MemberCard`) e atualiza o `app.tsx`.
+2. `feat/f`, criada antes de E, adiciona um segundo uso de `DigitalCard` em outro arquivo.
+3. Cada uma tem CI verde sozinha. Label `homol` em E, depois em F.
+4. Esperado: o build de homol falha com as duas, o robô remove F (a última que entrou) e comenta "build falha com esta PR somada a #E".
+
+## Cenário 5: hotfix
+
+1. `fix/texto-banner` com a correção. Label `homol` → aprova homol → valida.
+2. Merge → aprova produção.
+3. Observe que dev e homol recebem a correção ao serem remontados sobre a nova `main`: não há propagação manual.
+
+Pergunta para o diário: quanto tempo do push à produção, contando as 2 aprovações?
+
+## Cenário 6: reprovação em homol
+
+1. PR com label `homol`, QA "reprova".
+2. Remova o label → homol volta ao estado anterior sem a feature, sem aprovação.
+3. Corrija com push e reaplique o label.
+
+## Cenário 7: rollback
+
+1. _Actions → Rollback production_, em "Use workflow from" escolha uma tag anterior, digite `ROLLBACK`, aprove.
+2. Confira o `/version.json` de produção e a coluna "prod" do painel em homol.
+3. Próximo merge na `main` sobe normalmente a versão nova.
+
+## Cenário 8: garantia de que o painel não vaza para produção
+
+1. Abra uma PR que mude o guard em `src/app.tsx` para renderizar o `EnvPanel` sempre.
+2. Esperado: o `check:production-bundle` falha o CI.
+
+---
+
+## Diário
+
+| Data | Cenário | PRs | Cliques | Conflitos | Observações |
+| ---- | ------- | --- | ------- | --------- | ----------- |
+|      |         |     |         |           |             |

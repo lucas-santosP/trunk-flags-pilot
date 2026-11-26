@@ -17,5 +17,5 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true
   },
-  "include": ["src", "flags/*.json"]
+  "include": ["src", "shared"]
 }

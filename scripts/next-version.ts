@@ -1,13 +1,5 @@
-import { bumpVersion } from './lib/flags-rules.ts'
-import type { Bump } from './lib/flags-rules.ts'
 import { nearestVersionTag, tagExists } from './lib/git.ts'
-
-function parseBump(value: string | undefined): Bump {
-  if (value === 'minor' || value === 'major') {
-    return value
-  }
-  return 'patch'
-}
+import { bumpVersion, parseBump } from './lib/version.ts'
 
 function main(): void {
   const next = bumpVersion(nearestVersionTag(), parseBump(process.argv[2]))

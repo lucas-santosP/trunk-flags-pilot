@@ -28,28 +28,14 @@ export default tseslint.config(
   },
   {
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/flags/**'],
+    ignores: ['src/app.tsx'],
     rules: {
       'no-restricted-globals': [
         'error',
         {
-          name: '__FLAGS__',
-          message: 'Leia flags apenas via useFlag/isFlagEnabled/<Feature> de src/flags.',
-        },
-        {
-          name: '__FLAG_MATRIX__',
-          message: 'Leia a matriz de flags apenas via listFlagMatrix de src/flags.',
-        },
-      ],
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['**/flags/*.json'],
-              message: 'Leia flags apenas via useFlag/isFlagEnabled/<Feature> de src/flags.',
-            },
-          ],
+          name: '__ENV_PANEL__',
+          message:
+            'O painel de ambientes só pode ser lido em src/app.tsx, atrás do guard de produção.',
         },
       ],
     },

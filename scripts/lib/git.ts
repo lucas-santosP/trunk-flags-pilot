@@ -1,41 +1,19 @@
 import { execFileSync } from 'node:child_process'
 
+import { parseCommitSubject } from '../../shared/env-manifest.ts'
+import type { HistoryEntry } from '../../shared/env-manifest.ts'
+
 export function git(args: string[]): string {
   return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
-export function readFileAtRef<T>(ref: string, path: string, fallback: T): T {
+export function tryGit(args: string[]): boolean {
   try {
-    return JSON.parse(git(['show', `${ref}:${path}`])) as T
+    git(args)
+    return true
   } catch {
-    return fallback
+    return false
   }
-}
-
-export function changedFilesSince(baseRef: string): string[] {
-  const output = git(['diff', '--name-only', `${baseRef}...HEAD`])
-  return output ? output.split('\n') : []
-}
-
-export type FileCommit = {
-  sha: string
-  date: string
-}
-
-export function commitsTouching(path: string): FileCommit[] {
-  let output: string
-  try {
-    output = git(['log', '--format=%H%x09%cI', '--', path])
-  } catch {
-    return []
-  }
-  if (!output) {
-    return []
-  }
-  return output.split('\n').map(function toCommit(line) {
-    const [sha, date] = line.split('\t')
-    return { sha, date }
-  })
 }
 
 export function nearestVersionTag(): string | null {
@@ -47,10 +25,43 @@ export function nearestVersionTag(): string | null {
 }
 
 export function tagExists(tag: string): boolean {
+  return tryGit(['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`])
+}
+
+export function isAncestor(ancestor: string, descendant: string): boolean {
+  return tryGit(['merge-base', '--is-ancestor', ancestor, descendant])
+}
+
+export function firstParentCommits(from: string, to: string): string[] {
+  const output = git(['rev-list', '--first-parent', '--reverse', `${from}..${to}`])
+  return output ? output.split('\n') : []
+}
+
+const FIELD_SEPARATOR = '\x1f'
+
+const RECORD_SEPARATOR = '\x1e'
+
+export function readMainHistory(ref: string, limit: number): HistoryEntry[] {
+  let output: string
   try {
-    git(['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`])
-    return true
+    output = git([
+      'log',
+      '--first-parent',
+      `-${limit}`,
+      `--format=%H${FIELD_SEPARATOR}%s${FIELD_SEPARATOR}%b${RECORD_SEPARATOR}`,
+      ref,
+    ])
   } catch {
-    return false
+    return []
   }
+  return output
+    .split(RECORD_SEPARATOR)
+    .map(function trimRecord(record) {
+      return record.trim()
+    })
+    .filter(Boolean)
+    .map(function toEntry(record) {
+      const [sha, subject, body = ''] = record.split(FIELD_SEPARATOR)
+      return { sha, ...parseCommitSubject(subject, body) }
+    })
 }

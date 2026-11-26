@@ -6,7 +6,7 @@ inputs:
     description: dev | homol | production
     required: true
   pages-branch:
-    description: Branch do Cloudflare Pages (main = produção, demais = alias de preview)
+    description: Branch do Cloudflare Pages (main = produção, demais = alias)
     required: true
   version:
     description: Versão exibida no app (tag ou sha curto)
@@ -34,15 +34,16 @@ runs:
         COMMIT_SHA: ${{ github.sha }}
       run: bun run build:${{ inputs.environment }}
 
-    - name: Deploy
+    - name: Produção sem painel nem manifesto
+      if: inputs.environment == 'production'
       shell: bash
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
-      run: >
-        bunx wrangler pages deploy dist
-        --project-name "${{ inputs.pages-project }}"
-        --branch "${{ inputs.pages-branch }}"
-        --commit-hash "${{ github.sha }}"
-        --commit-message "${{ inputs.environment }} ${{ inputs.version }}"
-        --commit-dirty=true
+      run: bun run check:production-bundle
+
+    - uses: ./.github/actions/pages-deploy
+      with:
+        pages-branch: ${{ inputs.pages-branch }}
+        commit-hash: ${{ github.sha }}
+        commit-message: ${{ inputs.environment }} ${{ inputs.version }}
+        cloudflare-api-token: ${{ inputs.cloudflare-api-token }}
+        cloudflare-account-id: ${{ inputs.cloudflare-account-id }}
+        pages-project: ${{ inputs.pages-project }}
