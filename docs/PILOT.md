@@ -20,7 +20,7 @@ As features dos cenários são fictícias. Exemplos de mudanças pequenas: troca
 2. CI verde → o robô monta **dev** com a PR. Confira o painel em dev: `#N ✓ no ar` em dev.
 3. Aplique o label `homol` → o robô pede aprovação do deploy de homol. Veja o resumo do run (PRs incluídas e motivo da aprovação) e aprove.
 4. Na PR, o status `homol-published` fica verde.
-5. Merge → _Release production_ cria a tag e aguarda aprovação → aprove.
+5. Merge → _Deploy production_ cria a tag e aguarda aprovação → aprove.
 6. Observe que homol e dev são remontados **sem pedir aprovação** (a PR saiu das PRs e passou a vir da main).
 
 ## Cenário 2: duas features em homol, só uma vai para produção

@@ -1,4 +1,4 @@
-name: Env deploy
+name: Deploy environment
 
 on:
   workflow_call:
@@ -17,7 +17,7 @@ jobs:
       checks: read
       statuses: read
     concurrency:
-      group: env-assemble-${{ inputs.environment }}
+      group: deploy-env-assemble-${{ inputs.environment }}
       cancel-in-progress: true
     outputs:
       changed: ${{ steps.approval.outputs.changed }}
@@ -43,8 +43,8 @@ jobs:
 
       - name: Identidade do robô
         run: |
-          git config user.name "env-sync[bot]"
-          git config user.email "env-sync@users.noreply.github.com"
+          git config user.name "deploy-bot"
+          git config user.email "deploy-bot@users.noreply.github.com"
 
       - id: version
         run: |
@@ -116,7 +116,7 @@ jobs:
       issues: write
       deployments: write
     concurrency:
-      group: env-deploy-${{ inputs.environment }}
+      group: deploy-env-deploy-${{ inputs.environment }}
       cancel-in-progress: true
     environment:
       name: ${{ inputs.environment == 'homol' && (needs.assemble.outputs.approval_required == 'true' && 'homol' || 'homol-sync') || 'dev' }}
@@ -151,8 +151,8 @@ jobs:
 
       - name: Identidade do robô
         run: |
-          git config user.name "env-sync[bot]"
-          git config user.email "env-sync@users.noreply.github.com"
+          git config user.name "deploy-bot"
+          git config user.email "deploy-bot@users.noreply.github.com"
 
       - name: Atualizar env/<ambiente>, status e comentários nas PRs
         env:

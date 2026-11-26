@@ -5,7 +5,7 @@ import type { VersionInfo } from '../shared/env-manifest.ts'
 
 const DIST = join(import.meta.dirname, '..', 'dist')
 
-const FORBIDDEN_MARKERS = ['manifest.json', 'Mudanças por ambiente', 'env-sync']
+const FORBIDDEN_MARKERS = ['manifest.json', 'Mudanças por ambiente']
 
 function listFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap(function toPaths(entry) {

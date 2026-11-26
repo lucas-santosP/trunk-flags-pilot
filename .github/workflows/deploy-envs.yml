@@ -1,4 +1,4 @@
-name: Env sync
+name: Deploy dev & homol
 
 on:
   push:
@@ -19,13 +19,13 @@ permissions:
 jobs:
   dev:
     if: vars.ENV_DEV_ENABLED != 'false'
-    uses: ./.github/workflows/env-deploy.yml
+    uses: ./.github/workflows/_deploy-env.yml
     with:
       environment: dev
     secrets: inherit
 
   homol:
-    uses: ./.github/workflows/env-deploy.yml
+    uses: ./.github/workflows/_deploy-env.yml
     with:
       environment: homol
     secrets: inherit
