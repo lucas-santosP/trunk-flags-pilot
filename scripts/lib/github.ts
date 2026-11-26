@@ -207,6 +207,20 @@ export function setCommitStatus(
   ])
 }
 
+type CombinedStatus = { statuses: { context: string; state: CommitState }[] }
+
+export function commitStatusState(
+  repository: string,
+  sha: string,
+  context: string,
+): CommitState | null {
+  const combined = ghJson<CombinedStatus>(['api', `repos/${repository}/commits/${sha}/status`])
+  const status = combined.statuses.find(function matchesContext(item) {
+    return item.context === context
+  })
+  return status?.state ?? null
+}
+
 type IssueComment = { id: number; body: string }
 
 function findMarkedComment(

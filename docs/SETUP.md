@@ -43,8 +43,8 @@ O Cloudflare (projeto Pages, token e Account ID) e os secrets/variáveis básico
 
 ### 5. Ruleset da `main` (_Settings → Rules → Rulesets_)
 
-- `Require status checks to pass`: `checks` **e** `homol-validado`.
-  - `homol-validado` só aparece na lista depois do primeiro deploy de homol. Se não aparecer, digite o nome.
+- `Require status checks to pass`: `checks` **e** `homol-published`.
+  - `homol-published` só aparece na lista depois do primeiro deploy de homol. Se não aparecer, digite o nome.
 - **Não** marque `Require branches to be up to date before merging`.
 - Mantenha `Require a pull request` e `Block force pushes`.
 

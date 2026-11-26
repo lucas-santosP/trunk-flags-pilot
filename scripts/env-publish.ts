@@ -1,15 +1,17 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 
-import type { AssembledEnvironment, EnvManifest } from '../shared/env-manifest.ts'
+import type { EnvManifest } from '../shared/env-manifest.ts'
 import { assemble, fetchPullRequestHeads } from './lib/assembly.ts'
 import { git, tryGit } from './lib/git.ts'
 import type { CommitState } from './lib/github.ts'
-import { currentRepository, setCommitStatus, upsertMarkedComment } from './lib/github.ts'
-
-const STATUS_CONTEXTS: Record<AssembledEnvironment, string> = {
-  dev: 'env/dev',
-  homol: 'homol-validado',
-}
+import {
+  commitStatusState,
+  currentRepository,
+  fetchOpenPullRequests,
+  setCommitStatus,
+  upsertMarkedComment,
+} from './lib/github.ts'
+import { pullRequestsOutsideEnvironment, STATUS_CONTEXTS } from './lib/env-status.ts'
 
 function runUrl(): string {
   const server = process.env.GITHUB_SERVER_URL ?? 'https://github.com'
@@ -76,6 +78,33 @@ function report(manifest: EnvManifest, version: string): void {
       marker,
       `⚠️ Não entrou em **${manifest.environment}** no deploy \`${version}\`: ${pullRequest.detail}.\n\nResolva e faça push: o ambiente é remontado automaticamente.`,
       true,
+    )
+  }
+
+  const openPullRequests = fetchOpenPullRequests(repository).filter(
+    function isSameRepository(pullRequest) {
+      return !pullRequest.isCrossRepository
+    },
+  )
+  for (const pullRequest of pullRequestsOutsideEnvironment(openPullRequests, manifest)) {
+    const state = commitStatusState(repository, pullRequest.headSha, context)
+    if (state === null || state === 'pending') {
+      continue
+    }
+    setCommitStatus(
+      repository,
+      pullRequest.headSha,
+      context,
+      'pending',
+      `Fora de ${manifest.environment} no deploy ${version}`,
+      targetUrl,
+    )
+    upsertMarkedComment(
+      repository,
+      pullRequest.number,
+      marker,
+      `➖ Fora de **${manifest.environment}** desde o deploy \`${version}\`.`,
+      false,
     )
   }
 }
