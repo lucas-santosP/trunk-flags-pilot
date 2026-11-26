@@ -256,17 +256,14 @@ function findMarkedComment(
   )
 }
 
-export function upsertMarkedComment(
+function writeComment(
   repository: string,
   number: number,
-  marker: string,
+  existing: IssueComment | null,
   body: string,
-  createIfMissing: boolean,
 ): void {
-  const fullBody = `${marker}\n${body}`
-  const existing = findMarkedComment(repository, number, marker)
   if (existing) {
-    if (existing.body !== fullBody) {
+    if (existing.body !== body) {
       gh(
         [
           'api',
@@ -276,15 +273,31 @@ export function upsertMarkedComment(
           '--input',
           '-',
         ],
-        JSON.stringify({ body: fullBody }),
+        JSON.stringify({ body }),
       )
     }
     return
   }
-  if (createIfMissing) {
-    gh(
-      ['api', '--method', 'POST', `repos/${repository}/issues/${number}/comments`, '--input', '-'],
-      JSON.stringify({ body: fullBody }),
-    )
+  gh(
+    ['api', '--method', 'POST', `repos/${repository}/issues/${number}/comments`, '--input', '-'],
+    JSON.stringify({ body }),
+  )
+}
+
+export function upsertComputedComment(
+  repository: string,
+  number: number,
+  marker: string,
+  compute: (currentBody: string | null) => string | null,
+  createIfMissing: boolean,
+): void {
+  const existing = findMarkedComment(repository, number, marker)
+  if (!existing && !createIfMissing) {
+    return
   }
+  const body = compute(existing?.body ?? null)
+  if (body === null) {
+    return
+  }
+  writeComment(repository, number, existing, body)
 }

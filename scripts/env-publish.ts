@@ -10,8 +10,8 @@ import {
   currentRunUrl,
   fetchOpenPullRequests,
   setCommitStatus,
-  upsertMarkedComment,
 } from './lib/github.ts'
+import { markStageOutside, writeStage } from './lib/card-writer.ts'
 import { pullRequestsOutsideEnvironment, STATUS_CONTEXTS } from './lib/env-status.ts'
 
 function pushEnvironmentBranch(manifest: EnvManifest): void {
@@ -37,7 +37,6 @@ function pushEnvironmentBranch(manifest: EnvManifest): void {
 function report(manifest: EnvManifest, version: string): void {
   const repository = currentRepository()
   const context = STATUS_CONTEXTS[manifest.environment]
-  const marker = `<!-- env-sync:${manifest.environment} -->`
   const targetUrl = currentRunUrl()
 
   for (const pullRequest of manifest.included) {
@@ -49,12 +48,12 @@ function report(manifest: EnvManifest, version: string): void {
       `Incluída no deploy de ${manifest.environment} (${version})`,
       targetUrl,
     )
-    upsertMarkedComment(
+    writeStage(
       repository,
       pullRequest.number,
-      marker,
-      `✅ Incluída em **${manifest.environment}** no deploy \`${version}\` (commit \`${pullRequest.headSha.slice(0, 7)}\`) · [run](${targetUrl})`,
-      false,
+      manifest.environment,
+      { kind: 'live', text: `no ar em \`${version}\` · [run](${targetUrl})` },
+      true,
     )
   }
 
@@ -68,11 +67,14 @@ function report(manifest: EnvManifest, version: string): void {
       `Fora de ${manifest.environment}: ${pullRequest.detail}`,
       targetUrl,
     )
-    upsertMarkedComment(
+    writeStage(
       repository,
       pullRequest.number,
-      marker,
-      `⚠️ Não entrou em **${manifest.environment}** no deploy \`${version}\`: ${pullRequest.detail}.\n\nResolva e faça push: o ambiente é remontado automaticamente. [Ver run](${targetUrl})`,
+      manifest.environment,
+      {
+        kind: 'skipped',
+        text: `pulada no deploy \`${version}\`: ${pullRequest.detail}. Resolva e faça push · [run](${targetUrl})`,
+      },
       true,
     )
   }
@@ -82,7 +84,19 @@ function report(manifest: EnvManifest, version: string): void {
       return !pullRequest.isCrossRepository
     },
   )
+  const waitingNumbers = new Set(
+    manifest.waiting.map(function toNumber(pullRequest) {
+      return pullRequest.number
+    }),
+  )
   for (const pullRequest of pullRequestsOutsideEnvironment(openPullRequests, manifest)) {
+    const waiting = waitingNumbers.has(pullRequest.number)
+    markStageOutside(repository, pullRequest.number, manifest.environment, {
+      kind: 'out',
+      text: waiting
+        ? `commit novo aguardando CI (deploy \`${version}\`)`
+        : `fora desde o deploy \`${version}\``,
+    })
     const state = commitStatusState(repository, pullRequest.headSha, context)
     if (state === null || state === 'pending') {
       continue
@@ -94,13 +108,6 @@ function report(manifest: EnvManifest, version: string): void {
       'pending',
       `Fora de ${manifest.environment} no deploy ${version}`,
       targetUrl,
-    )
-    upsertMarkedComment(
-      repository,
-      pullRequest.number,
-      marker,
-      `➖ Fora de **${manifest.environment}** desde o deploy \`${version}\`.`,
-      false,
     )
   }
 }

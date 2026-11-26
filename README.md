@@ -38,7 +38,7 @@ Ninguém faz PR para dev ou homol. **Uma PR por feature, sempre contra `main`.**
 5. **Aprovação de homol:** só quando entra código novo (PR nova ou commit novo). Quando só sai PR (merge, label removido), sobe sozinho. Commit na main que não passou por homol também exige aprovação.
 6. **Status `homol-published`:** fica verde no commit da PR quando ele entra num deploy de homol. É check obrigatório para o merge. Significa "este commit está publicado em homol", **não** "validado pelo QA". Um push novo zera o status até a próxima montagem, e a PR que sai de homol (label removido, draft) volta para pendente. Em dev, o mesmo vale para `dev-published` (informativo, não obrigatório).
 7. **Dev opcional:** `ENV_DEV_ENABLED=false` desliga a montagem de dev.
-8. **Avisos de aprovação:** quando o deploy de homol pede aprovação, o robô comenta nas PRs com código novo "⏳ Aguardando aprovação" com o link do run (onde fica o botão _Review deployments_). Depois do deploy o mesmo comentário vira "✅ Incluída", também com link.
+8. **Cartão de status da PR:** o robô mantém um único comentário por PR com a tabela dev / homol / merge / produção e o próximo passo (aplicar o label `homol`, aprovar o deploy, fazer o merge). Quando um deploy pede aprovação, a linha mostra "⏳ aguardando aprovação · [Revisar e aprovar]" com o link do run. O comentário é editado a cada etapa (sem notificações novas).
 
 As branches `env/dev` e `env/homol` são publicadas para inspeção (`git checkout env/homol`) e contêm `env-manifest.json` com o que foi montado. A atualização delas é best-effort: o `GITHUB_TOKEN` não pode publicar mudanças em `.github/workflows`, então uma PR que mexe em workflow não atualiza a branch (o deploy acontece normalmente).
 
@@ -46,7 +46,7 @@ As branches `env/dev` e `env/homol` são publicadas para inspeção (`git checko
 
 - Cada merge na `main` cria a tag `vX.Y.Z` (patch, ou `minor`/`major` com o label `release:minor`/`release:major` na PR) como pre-release, e o deploy aguarda aprovação no environment `production`.
 - Merges seguidos substituem a release pendente: o aprovador aprova uma vez a mais nova, que contém tudo.
-- Cada PR da release recebe o comentário "⏳ aguardando aprovação de produção" com o link do run, e depois "🚀 Em produção". Com releases substituídas, a PR é atualizada para a versão mais nova (a lista vai da última release publicada até o commit atual).
+- A linha "produção" do cartão de cada PR da release mostra "⏳ release vX aguardando aprovação · [Revisar e aprovar]" e depois "🚀 em produção". Com releases substituídas, a PR é atualizada para a versão mais nova (a lista vai da última release publicada até o commit atual).
 - Merge na `main` **não** sobe sozinho: a aprovação do deploy é o gate de produção, como no processo atual da empresa.
 
 ## Painel de ambientes

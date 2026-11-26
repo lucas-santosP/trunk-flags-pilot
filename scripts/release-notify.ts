@@ -1,19 +1,9 @@
 import { appendFileSync } from 'node:fs'
 
 import { git, readMainHistory, tryGit } from './lib/git.ts'
-import {
-  currentRepository,
-  currentRunUrl,
-  latestPublishedReleaseTag,
-  upsertMarkedComment,
-} from './lib/github.ts'
-import {
-  parseNumbers,
-  pullRequestsSince,
-  RELEASE_MARKER,
-  releaseDoneComment,
-  releasePendingComment,
-} from './lib/notify.ts'
+import { writeStage } from './lib/card-writer.ts'
+import { currentRepository, currentRunUrl, latestPublishedReleaseTag } from './lib/github.ts'
+import { parseNumbers, pullRequestsSince } from './lib/notify.ts'
 
 const HISTORY_LIMIT = 100
 
@@ -32,11 +22,14 @@ function notifyPending(repository: string, version: string): void {
     ? pullRequestsSince(history, stopSha)
     : pullRequestsSince(history.slice(0, 1), null)
   for (const number of numbers) {
-    upsertMarkedComment(
+    writeStage(
       repository,
       number,
-      RELEASE_MARKER,
-      releasePendingComment(version, currentRunUrl()),
+      'production',
+      {
+        kind: 'approval',
+        text: `release \`${version}\` aguardando aprovação · [Revisar e aprovar](${currentRunUrl()})`,
+      },
       true,
     )
     console.log(`#${number}: aguardando aprovação de produção`)
@@ -48,11 +41,11 @@ function notifyPending(repository: string, version: string): void {
 
 function notifyDone(repository: string, version: string, numbers: number[]): void {
   for (const number of numbers) {
-    upsertMarkedComment(
+    writeStage(
       repository,
       number,
-      RELEASE_MARKER,
-      releaseDoneComment(version, currentRunUrl()),
+      'production',
+      { kind: 'live', text: `em produção na release \`${version}\` · [run](${currentRunUrl()})` },
       true,
     )
     console.log(`#${number}: em produção`)

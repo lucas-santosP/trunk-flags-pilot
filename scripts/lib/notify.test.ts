@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { homolPendingComment, parseNumbers, pullRequestsSince } from './notify.ts'
+import { parseNumbers, pullRequestsSince } from './notify.ts'
 
 function entry(sha: string, number: number | null) {
   return { sha, number, title: `commit ${sha}` }
@@ -21,16 +21,5 @@ describe('parseNumbers', () => {
   it('converte a lista separada por vírgula e ignora vazios', () => {
     expect(parseNumbers('8, 10,,x')).toEqual([8, 10])
     expect(parseNumbers('')).toEqual([])
-  })
-})
-
-describe('homolPendingComment', () => {
-  it('inclui o link do run e as PRs do deploy', () => {
-    const comment = homolPendingComment('homol-abc1234-r1', 'https://run', [
-      { number: 8, title: 'A', url: 'u', headSha: 's' },
-      { number: 10, title: 'B', url: 'u', headSha: 's' },
-    ])
-    expect(comment).toContain('[Revisar e aprovar](https://run)')
-    expect(comment).toContain('#8, #10')
   })
 })
