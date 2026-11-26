@@ -28,7 +28,7 @@ function panelConfig(): EnvPanelConfig {
 export default defineConfig(function createConfig({ mode }) {
   const environment = resolveEnvironment(mode)
   const isProduction = environment === 'production'
-  const version = process.env.APP_VERSION ?? 'local'
+  const version = process.env.APP_VERSION ?? 'X'
   const sha = process.env.COMMIT_SHA ?? 'local'
 
   return {
