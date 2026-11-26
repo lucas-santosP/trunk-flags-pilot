@@ -26,7 +26,6 @@ jobs:
       main_sha: ${{ steps.version.outputs.main_sha }}
     env:
       ENVIRONMENT: ${{ inputs.environment }}
-      TOOLS: ${{ runner.temp }}/env-tools
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -38,8 +37,8 @@ jobs:
 
       - name: Copiar scripts confiáveis da main
         run: |
-          mkdir -p "$TOOLS"
-          cp -r scripts shared "$TOOLS"/
+          mkdir -p "$RUNNER_TEMP/env-tools"
+          cp -r scripts shared "$RUNNER_TEMP/env-tools"/
 
       - name: Identidade do robô
         run: |
@@ -55,19 +54,19 @@ jobs:
       - name: Planejar (PRs candidatas e ordem)
         env:
           ENV_REQUIRE_APPROVED_REVIEW: ${{ vars.ENV_REQUIRE_APPROVED_REVIEW }}
-        run: bun "$TOOLS/scripts/env-plan.ts" "$ENVIRONMENT" "$RUNNER_TEMP/plan.json"
+        run: bun "$RUNNER_TEMP/env-tools/scripts/env-plan.ts" "$ENVIRONMENT" "$RUNNER_TEMP/plan.json"
 
       - name: Montar e buildar (remove PRs que quebram o build)
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
           CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
-        run: bun "$TOOLS/scripts/env-assemble.ts" "$RUNNER_TEMP/plan.json" "$RUNNER_TEMP/manifest.json"
+        run: bun "$RUNNER_TEMP/env-tools/scripts/env-assemble.ts" "$RUNNER_TEMP/plan.json" "$RUNNER_TEMP/manifest.json"
 
       - name: Decidir deploy e aprovação
         id: approval
         env:
           PREVIOUS_MANIFEST_URL: https://${{ inputs.environment }}.${{ vars.CF_PAGES_PROJECT }}.pages.dev/manifest.json
-        run: bun "$TOOLS/scripts/env-approval.ts" "$RUNNER_TEMP/manifest.json" "$PREVIOUS_MANIFEST_URL"
+        run: bun "$RUNNER_TEMP/env-tools/scripts/env-approval.ts" "$RUNNER_TEMP/manifest.json" "$PREVIOUS_MANIFEST_URL"
 
       - uses: actions/upload-artifact@v4
         with:
