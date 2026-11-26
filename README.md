@@ -57,14 +57,14 @@ Dev e homol mostram uma matriz **PR × ambiente** (✓ no ar, ⚠ pulada com mot
 
 ## Workflows
 
-| Workflow              | Gatilho                                                           | O que faz                                                   |
-| --------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
-| `ci.yml`              | PR                                                                | format, lint, typecheck, testes, builds, checagem de prod   |
-| `env-sync.yml`        | push na main, label, draft, review, fim do CI, PR fechada, manual | monta dev e homol via `env-deploy.yml`                      |
-| `env-sync-review.yml` | review submetido ou descartado                                    | dispara o `env-sync` na `main`                              |
-| `env-deploy.yml`      | chamado pelo `env-sync`                                           | planeja, monta, builda, decide aprovação, publica e reporta |
-| `release-prod.yml`    | push na main                                                      | tag + pre-release + deploy de produção com aprovação        |
-| `rollback-prod.yml`   | manual, a partir de uma tag                                       | redeploy de uma tag antiga em produção (pede `ROLLBACK`)    |
+| Workflow             | Gatilho                                                           | O que faz                                                   |
+| -------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| `ci.yml`             | PR                                                                | format, lint, typecheck, testes, builds, checagem de prod   |
+| `env-sync.yml`       | push na main, label, draft, review, fim do CI, PR fechada, manual | monta dev e homol via `env-deploy.yml`                      |
+| `env-sync-relay.yml` | evento na PR (label, draft, abertura, fechamento) ou review       | dispara o `env-sync` na `main`                              |
+| `env-deploy.yml`     | chamado pelo `env-sync`                                           | planeja, monta, builda, decide aprovação, publica e reporta |
+| `release-prod.yml`   | push na main                                                      | tag + pre-release + deploy de produção com aprovação        |
+| `rollback-prod.yml`  | manual, a partir de uma tag                                       | redeploy de uma tag antiga em produção (pede `ROLLBACK`)    |
 
 ## Scripts
 
@@ -83,5 +83,5 @@ Os scripts de montagem rodam a partir de uma cópia feita **da main** antes de m
 
 - O código das PRs é buildado num job **sem secrets e com token só de leitura**. O token do Cloudflare só existe no job de deploy, que publica o `dist` já pronto.
 - Só entram PRs do próprio repositório (forks são ignorados) e com review aprovado.
-- Todo deploy de dev e homol roda com a ref `main` (os environments só aceitam `main`). Review de PR, que no GitHub roda com a ref da PR, apenas dispara o `env-sync` na `main` via `env-sync-review.yml`.
+- Todo deploy de dev e homol roda com a ref `main` (os environments só aceitam `main`). Eventos de PR (label, draft, review etc.) apenas disparam o `env-sync` na `main` via `env-sync-relay.yml`: a montagem nunca roda vinculada à PR, então a PR mostra só o check `relay` e os status `dev-published`/`homol-published`, sem jobs cancelados ou pulados.
 - Os `.env.<ambiente>` contêm só URLs fictícias (`.invalid`).
