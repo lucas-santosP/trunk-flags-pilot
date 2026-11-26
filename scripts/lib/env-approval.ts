@@ -32,6 +32,15 @@ function wasDeployedWith(previous: EnvManifest, number: number, headSha: string)
   })
 }
 
+export function newPullRequests(
+  next: EnvManifest,
+  previous: EnvManifest | null,
+): EnvManifest['included'] {
+  return next.included.filter(function isNew(pullRequest) {
+    return !previous || !wasDeployedWith(previous, pullRequest.number, pullRequest.headSha)
+  })
+}
+
 export function evaluateApproval(
   next: EnvManifest,
   previous: EnvManifest | null,
@@ -47,12 +56,10 @@ export function evaluateApproval(
 
   const reasons: string[] = []
 
-  for (const pullRequest of next.included) {
-    if (!wasDeployedWith(previous, pullRequest.number, pullRequest.headSha)) {
-      reasons.push(
-        `PR #${pullRequest.number} nova ou com commits novos (${pullRequest.headSha.slice(0, 7)})`,
-      )
-    }
+  for (const pullRequest of newPullRequests(next, previous)) {
+    reasons.push(
+      `PR #${pullRequest.number} nova ou com commits novos (${pullRequest.headSha.slice(0, 7)})`,
+    )
   }
 
   if (mainCommits === null) {

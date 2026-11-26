@@ -22,6 +22,7 @@ jobs:
     outputs:
       changed: ${{ steps.approval.outputs.changed }}
       approval_required: ${{ steps.approval.outputs.approval_required }}
+      new_pull_requests: ${{ steps.approval.outputs.new_pull_requests }}
       version: ${{ steps.version.outputs.version }}
       main_sha: ${{ steps.version.outputs.main_sha }}
     env:
@@ -74,9 +75,37 @@ jobs:
           path: dist
           retention-days: 3
 
-  deploy:
+  notify:
     needs: assemble
-    if: needs.assemble.outputs.changed == 'true'
+    if: needs.assemble.outputs.changed == 'true' && needs.assemble.outputs.approval_required == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: env-${{ inputs.environment }}
+          path: ${{ runner.temp }}/artifact
+
+      - name: Avisar nas PRs que o deploy aguarda aprovação
+        env:
+          VERSION: ${{ needs.assemble.outputs.version }}
+          NEW_PULL_REQUESTS: ${{ needs.assemble.outputs.new_pull_requests }}
+        run: bun scripts/env-notify.ts "$RUNNER_TEMP/artifact/manifest.json" "$VERSION" "$NEW_PULL_REQUESTS"
+
+  deploy:
+    needs: [assemble, notify]
+    if: ${{ !cancelled() && needs.assemble.result == 'success' && needs.assemble.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

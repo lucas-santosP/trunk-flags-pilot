@@ -21,6 +21,8 @@
     "env:assemble": "bun scripts/env-assemble.ts",
     "env:approval": "bun scripts/env-approval.ts",
     "env:publish": "bun scripts/env-publish.ts",
+    "env:notify": "bun scripts/env-notify.ts",
+    "release:notify": "bun scripts/release-notify.ts",
     "release:next-version": "bun scripts/next-version.ts"
   },
   "dependencies": {
