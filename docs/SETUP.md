@@ -47,6 +47,23 @@ O Cloudflare (projeto Pages, token e Account ID) e os secrets/variáveis básico
   - `homol-published` só aparece na lista depois do primeiro deploy de homol. Se não aparecer, digite o nome.
 - **Não** marque `Require branches to be up to date before merging`.
 - Mantenha `Require a pull request` e `Block force pushes`.
+- Em `Require a pull request`: marque **Dismiss stale pull request approvals when new commits are pushed** (push novo exige novo review).
+- Em `Allowed merge methods`: só **Squash**.
+
+#### Projeto real (com time)
+
+No piloto você está sozinho, então algumas regras ficam desligadas. No projeto real, ative também:
+
+| Regra (em `Require a pull request`)                     | Por quê                                                                                                           |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Required approvals`: 1 ou mais                         | review obrigatório                                                                                                |
+| **Require review from Code Owners**                     | o review precisa ser de um techlead (`CODEOWNERS`: `* @org/techleads`)                                            |
+| **Require approval of the most recent reviewable push** | o último push precisa ser aprovado por alguém diferente de quem o fez. Trava o merge de quem está sozinho no repo |
+
+- Merge **não** é restrito a techleads: o review de techlead (Code Owners) + `homol-published` + aprovação do deploy de produção já cobrem o risco.
+- Nos environments `homol` e `production`, cadastre como reviewer o **time** de techleads, não pessoas.
+- Alterações em ruleset, `CODEOWNERS` e reviewers de environments são mudanças de controle de acesso: registre em chamado e obtenha aprovação formal.
+- Omitir `ENV_REQUIRE_APPROVED_REVIEW` (dev passa a exigir review aprovado).
 
 ### 6. Branches `env/*`
 

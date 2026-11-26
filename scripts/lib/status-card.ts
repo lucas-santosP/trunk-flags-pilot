@@ -54,8 +54,11 @@ function mergeRow(state: CardState): string {
 }
 
 function homolFallback(state: CardState): string {
+  if (state.devEnabled && state.dev?.kind === 'skipped') {
+    return '⬜ resolva o problema apontado em dev antes de aplicar o label `homol`'
+  }
   if (state.devEnabled && state.dev?.kind !== 'live') {
-    return '⬜ após dev'
+    return '⬜ aplique o label `homol` quando a PR estiver pronta para QA'
   }
   return '⬜ **Próximo passo:** aplique o label `homol`'
 }

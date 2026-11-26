@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   trigger:
+    if: github.event.action != 'closed' || github.event.pull_request.merged != true
     runs-on: ubuntu-latest
     steps:
       - name: Disparar Deploy dev & homol na main

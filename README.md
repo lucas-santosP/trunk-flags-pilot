@@ -32,7 +32,9 @@ Ninguém faz PR para dev ou homol. **Uma PR por feature, sempre contra `main`.**
 ## Regras do robô (_Deploy dev & homol_)
 
 1. **Quem entra:** PRs abertas contra `main`, não draft, do próprio repo, com CI verde e review aprovado (`ENV_REQUIRE_APPROVED_REVIEW=false` desliga a exigência de review, útil quando se está sozinho). CI pendente fica "aguardando".
-2. **Ordem:** ordem de entrada no ambiente (homol: quando o label foi aplicado; dev: PRs de homol primeiro, depois pela data da aprovação). Quem já está no ambiente não sai por causa de quem chegou depois.
+2. **Ordem:** ordem de entrada no ambiente.
+   - **homol:** pela ordem em que o label `homol` foi aplicado. Quem já está em homol não sai por causa de quem chegou depois.
+   - **dev:** primeiro as PRs de homol (na mesma ordem de homol), depois as demais pela data da aprovação do review (ou de criação, sem review obrigatório). Assim dev é sempre um superconjunto de homol. Consequência: uma PR que recebe o label `homol` passa na frente em dev e, se conflitar, tira de dev uma PR que já estava lá.
 3. **Conflito:** a PR que chega depois é pulada. O robô comenta na PR com quem ela conflita e marca o status vermelho. O ambiente sobe sem ela.
 4. **Build quebrado na combinação:** o robô remove as PRs na ordem inversa de entrada até o build passar e comenta nas removidas.
 5. **Aprovação de homol:** só quando entra código novo (PR nova ou commit novo). Quando só sai PR (merge, label removido), sobe sozinho. Commit na main que não passou por homol também exige aprovação.
@@ -59,14 +61,14 @@ Dev e homol mostram uma matriz **PR × ambiente** (✓ no ar, ⚠ pulada com mot
 
 ## Workflows
 
-| Workflow                  | Gatilho                                                     | O que faz                                                   |
-| ------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------- |
-| `ci.yml`                  | PR                                                          | format, lint, typecheck, testes, builds, checagem de prod   |
-| `deploy-envs.yml`         | push na main, fim do CI, manual ou disparo do trigger       | monta dev e homol via `_deploy-env.yml`                     |
-| `trigger-deploy-envs.yml` | evento na PR (label, draft, abertura, fechamento) ou review | dispara o `deploy-envs.yml` na `main`                       |
-| `_deploy-env.yml`         | só chamado pelo `deploy-envs.yml` (prefixo `_`)             | planeja, monta, builda, decide aprovação, publica e reporta |
-| `deploy-production.yml`   | push na main                                                | tag + pre-release + deploy de produção com aprovação        |
-| `rollback-production.yml` | manual, a partir de uma tag                                 | redeploy de uma tag antiga em produção (pede `ROLLBACK`)    |
+| Workflow                  | Gatilho                                                               | O que faz                                                   |
+| ------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `ci.yml`                  | PR                                                                    | format, lint, typecheck, testes, builds, checagem de prod   |
+| `deploy-envs.yml`         | push na main, fim do CI, manual ou disparo do trigger                 | monta dev e homol via `_deploy-env.yml`                     |
+| `trigger-deploy-envs.yml` | evento na PR (label, draft, abertura, fechamento sem merge) ou review | dispara o `deploy-envs.yml` na `main`                       |
+| `_deploy-env.yml`         | só chamado pelo `deploy-envs.yml` (prefixo `_`)                       | planeja, monta, builda, decide aprovação, publica e reporta |
+| `deploy-production.yml`   | push na main                                                          | tag + pre-release + deploy de produção com aprovação        |
+| `rollback-production.yml` | manual, a partir de uma tag                                           | redeploy de uma tag antiga em produção (pede `ROLLBACK`)    |
 
 ## Scripts
 
