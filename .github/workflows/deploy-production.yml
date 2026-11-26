@@ -1,4 +1,4 @@
-name: Release production
+name: Deploy production
 
 on:
   push:
@@ -10,11 +10,11 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: release-production
+  group: deploy-production
   cancel-in-progress: true
 
 jobs:
-  tag:
+  release:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -56,7 +56,7 @@ jobs:
             --prerelease
 
   notify:
-    needs: tag
+    needs: release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -76,13 +76,13 @@ jobs:
       - name: Avisar nas PRs da release que produção aguarda aprovação
         id: pending
         env:
-          VERSION: ${{ needs.tag.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
           ENV_DEV_ENABLED: ${{ vars.ENV_DEV_ENABLED }}
         run: bun scripts/release-notify.ts pending "$VERSION"
 
   deploy:
-    needs: [tag, notify]
-    if: ${{ !cancelled() && needs.tag.result == 'success' }}
+    needs: [release, notify]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,7 +99,7 @@ jobs:
         with:
           environment: production
           pages-branch: main
-          version: ${{ needs.tag.outputs.version }}
+          version: ${{ needs.release.outputs.version }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           pages-project: ${{ vars.CF_PAGES_PROJECT }}
@@ -107,14 +107,14 @@ jobs:
       - name: Marcar release como latest
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.tag.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: gh release edit "$VERSION" --prerelease=false --latest
 
       - name: Avisar nas PRs que estão em produção
         if: needs.notify.outputs.pull_requests != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.tag.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
           PULL_REQUESTS: ${{ needs.notify.outputs.pull_requests }}
           ENV_DEV_ENABLED: ${{ vars.ENV_DEV_ENABLED }}
         run: bun scripts/release-notify.ts done "$VERSION" "$PULL_REQUESTS"

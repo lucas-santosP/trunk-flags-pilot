@@ -29,7 +29,7 @@ Ninguém faz PR para dev ou homol. **Uma PR por feature, sempre contra `main`.**
 | levar a feature para produção     | merge da PR (exige `homol-published`) e aprovar o deploy   |
 | fazer rollback                    | _Actions → Rollback production_ a partir de uma tag antiga |
 
-## Regras do robô (`env-sync`)
+## Regras do robô (_Deploy dev & homol_)
 
 1. **Quem entra:** PRs abertas contra `main`, não draft, do próprio repo, com CI verde e review aprovado (`ENV_REQUIRE_APPROVED_REVIEW=false` desliga a exigência de review, útil quando se está sozinho). CI pendente fica "aguardando".
 2. **Ordem:** ordem de entrada no ambiente (homol: quando o label foi aplicado; dev: PRs de homol primeiro, depois pela data da aprovação). Quem já está no ambiente não sai por causa de quem chegou depois.
@@ -59,14 +59,14 @@ Dev e homol mostram uma matriz **PR × ambiente** (✓ no ar, ⚠ pulada com mot
 
 ## Workflows
 
-| Workflow             | Gatilho                                                           | O que faz                                                   |
-| -------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
-| `ci.yml`             | PR                                                                | format, lint, typecheck, testes, builds, checagem de prod   |
-| `env-sync.yml`       | push na main, label, draft, review, fim do CI, PR fechada, manual | monta dev e homol via `env-deploy.yml`                      |
-| `env-sync-relay.yml` | evento na PR (label, draft, abertura, fechamento) ou review       | dispara o `env-sync` na `main`                              |
-| `env-deploy.yml`     | chamado pelo `env-sync`                                           | planeja, monta, builda, decide aprovação, publica e reporta |
-| `release-prod.yml`   | push na main                                                      | tag + pre-release + deploy de produção com aprovação        |
-| `rollback-prod.yml`  | manual, a partir de uma tag                                       | redeploy de uma tag antiga em produção (pede `ROLLBACK`)    |
+| Workflow                  | Gatilho                                                     | O que faz                                                   |
+| ------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------- |
+| `ci.yml`                  | PR                                                          | format, lint, typecheck, testes, builds, checagem de prod   |
+| `deploy-envs.yml`         | push na main, fim do CI, manual ou disparo do trigger       | monta dev e homol via `_deploy-env.yml`                     |
+| `trigger-deploy-envs.yml` | evento na PR (label, draft, abertura, fechamento) ou review | dispara o `deploy-envs.yml` na `main`                       |
+| `_deploy-env.yml`         | só chamado pelo `deploy-envs.yml` (prefixo `_`)             | planeja, monta, builda, decide aprovação, publica e reporta |
+| `deploy-production.yml`   | push na main                                                | tag + pre-release + deploy de produção com aprovação        |
+| `rollback-production.yml` | manual, a partir de uma tag                                 | redeploy de uma tag antiga em produção (pede `ROLLBACK`)    |
 
 ## Scripts
 
@@ -85,5 +85,5 @@ Os scripts de montagem rodam a partir de uma cópia feita **da main** antes de m
 
 - O código das PRs é buildado num job **sem secrets e com token só de leitura**. O token do Cloudflare só existe no job de deploy, que publica o `dist` já pronto.
 - Só entram PRs do próprio repositório (forks são ignorados) e com review aprovado.
-- Todo deploy de dev e homol roda com a ref `main` (os environments só aceitam `main`). Eventos de PR (label, draft, review etc.) apenas disparam o `env-sync` na `main` via `env-sync-relay.yml`: a montagem nunca roda vinculada à PR, então a PR mostra só o check `relay` e os status `dev-published`/`homol-published`, sem jobs cancelados ou pulados.
+- Todo deploy de dev e homol roda com a ref `main` (os environments só aceitam `main`). Eventos de PR (label, draft, review etc.) apenas disparam o `deploy-envs.yml` na `main` via `trigger-deploy-envs.yml`: a montagem nunca roda vinculada à PR, então a PR mostra só o check `trigger` e os status `dev-published`/`homol-published`, sem jobs cancelados ou pulados.
 - Os `.env.<ambiente>` contêm só URLs fictícias (`.invalid`).
