@@ -20,6 +20,11 @@ describe('status card', () => {
     expect(withHomol).toContain('**Próximo passo:** pode fazer o merge')
   })
 
+  it('orienta resolver o problema de dev antes de homol', () => {
+    const body = updateCard(null, 'dev', { kind: 'skipped', text: 'conflita com #1' }, true)
+    expect(body).toContain('resolva o problema apontado em dev antes de aplicar o label `homol`')
+  })
+
   it('esconde dev quando o ambiente está desligado', () => {
     const body = updateCard(null, 'homol', { kind: 'approval', text: 'aguardando' }, false)
     expect(body).not.toContain('| dev |')
