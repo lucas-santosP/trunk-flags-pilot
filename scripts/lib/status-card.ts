@@ -84,7 +84,7 @@ export function renderCard(state: CardState): string {
       return `| ${stage} | ${status.replaceAll('|', '\\|')} |`
     }),
     '',
-    '<sub>Atualizado automaticamente pelo env-sync.</sub>',
+    '<sub>Atualizado automaticamente pelo Deploy dev & homol.</sub>',
   ].join('\n')
 }
 

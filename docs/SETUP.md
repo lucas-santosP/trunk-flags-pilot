@@ -55,8 +55,8 @@ Não precisam de ruleset no piloto. O robô faz force-push nelas. Se quiser impe
 ### 7. Primeira execução
 
 1. Faça o merge da PR do Modelo R.
-2. Aprove o deploy de produção (_Release production_).
-3. _Actions → Env sync_ roda pelo push na `main`. A primeira montagem de homol pede aprovação (primeiro deploy montado).
+2. Aprove o deploy de produção (_Deploy production_).
+3. _Actions → Deploy dev & homol_ roda pelo push na `main`. A primeira montagem de homol pede aprovação (primeiro deploy montado).
 4. Abra `https://homol.<projeto>.pages.dev/manifest.json` e `https://<projeto>.pages.dev/version.json` para conferir.
 5. Abra `https://<projeto>.pages.dev`: **não** pode haver painel. Abra homol: painel com a matriz.
 

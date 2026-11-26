@@ -1,4 +1,4 @@
-name: Env sync relay
+name: Trigger deploy envs
 
 on:
   pull_request_target:
@@ -10,10 +10,10 @@ permissions:
   actions: write
 
 jobs:
-  relay:
+  trigger:
     runs-on: ubuntu-latest
     steps:
-      - name: Disparar env-sync na main
+      - name: Disparar Deploy dev & homol na main
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run env-sync.yml --ref main -R "$GITHUB_REPOSITORY"
+        run: gh workflow run deploy-envs.yml --ref main -R "$GITHUB_REPOSITORY"
