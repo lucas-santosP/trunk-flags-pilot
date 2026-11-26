@@ -1,3 +1,4 @@
+import { Footer } from './components/footer'
 import { Header } from './components/header'
 import { EnvPanel } from './env-panel/env-panel'
 import { DigitalCard } from './features/digital-card/digital-card'
@@ -12,6 +13,8 @@ export function App() {
       {__APP_ENV__ !== 'production' && __ENV_PANEL__ !== null && (
         <EnvPanel config={__ENV_PANEL__} />
       )}
+
+      <Footer />
     </main>
   )
 }
