@@ -87,7 +87,7 @@ export function renderCard(state: CardState): string {
       return `| ${stage} | ${status.replaceAll('|', '\\|')} |`
     }),
     '',
-    '<sub>Atualizado automaticamente pelo Deploy dev & homol.</sub>',
+    '<sub>Atualizado automaticamente pelos workflows de deploy.</sub>',
   ].join('\n')
 }
 
@@ -120,6 +120,4 @@ export function markOutside(
   return updateCard(body, stage, stageState, devEnabled)
 }
 
-export function devEnabledFromEnv(value: string | undefined): boolean {
-  return value !== 'false'
-}
+export const DEV_WORKFLOW_PATH = '.github/workflows/deploy-dev.yml'

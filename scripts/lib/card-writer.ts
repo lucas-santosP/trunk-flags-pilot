@@ -1,9 +1,10 @@
 import { upsertComputedComment } from './github.ts'
 import type { CardStage, StageState } from './status-card.ts'
-import { devEnabledFromEnv, markOutside, STATUS_CARD_MARKER, updateCard } from './status-card.ts'
+import { tryGit } from './git.ts'
+import { DEV_WORKFLOW_PATH, markOutside, STATUS_CARD_MARKER, updateCard } from './status-card.ts'
 
 function devEnabled(): boolean {
-  return devEnabledFromEnv(process.env.ENV_DEV_ENABLED)
+  return tryGit(['cat-file', '-e', `origin/main:${DEV_WORKFLOW_PATH}`])
 }
 
 export function writeStage(

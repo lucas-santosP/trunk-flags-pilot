@@ -19,7 +19,6 @@ O Cloudflare (projeto Pages, token e Account ID) e os secrets/variáveis básico
 | Variável                      | Valor no piloto | Por quê                                                          |
 | ----------------------------- | --------------- | ---------------------------------------------------------------- |
 | `ENV_REQUIRE_APPROVED_REVIEW` | `false`         | o GitHub não deixa você aprovar a própria PR; na empresa, omitir |
-| `ENV_DEV_ENABLED`             | (omitir)        | só defina `false` em projetos sem dev                            |
 
 `CF_PAGES_PROJECT`, `CLOUDFLARE_ACCOUNT_ID` e o secret `CLOUDFLARE_API_TOKEN` continuam como estão.
 
@@ -64,6 +63,7 @@ No piloto você está sozinho, então algumas regras ficam desligadas. No projet
 - Nos environments `homol` e `production`, cadastre como reviewer o **time** de techleads, não pessoas.
 - Alterações em ruleset, `CODEOWNERS` e reviewers de environments são mudanças de controle de acesso: registre em chamado e obtenha aprovação formal.
 - Omitir `ENV_REQUIRE_APPROVED_REVIEW` (dev passa a exigir review aprovado).
+- Projeto sem dev: não copie `deploy-dev.yml`.
 
 ### 6. Branches `env/*`
 
@@ -73,7 +73,7 @@ Não precisam de ruleset no piloto. O robô faz force-push nelas. Se quiser impe
 
 1. Faça o merge da PR do Modelo R.
 2. Aprove o deploy de produção (_Deploy production_).
-3. _Actions → Deploy dev & homol_ roda pelo push na `main`. A primeira montagem de homol pede aprovação (primeiro deploy montado).
+3. _Actions → Deploy dev_ e _Deploy homol_ rodam pelo push na `main`. A primeira montagem de homol pede aprovação (primeiro deploy montado).
 4. Abra `https://homol.<projeto>.pages.dev/manifest.json` e `https://<projeto>.pages.dev/version.json` para conferir.
 5. Abra `https://<projeto>.pages.dev`: **não** pode haver painel. Abra homol: painel com a matriz.
 
