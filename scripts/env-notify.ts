@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs'
 
 import type { EnvManifest } from '../shared/env-manifest.ts'
-import { currentRepository, currentRunUrl, upsertMarkedComment } from './lib/github.ts'
-import { homolPendingComment, parseNumbers } from './lib/notify.ts'
+import { writeStage } from './lib/card-writer.ts'
+import { currentRepository, currentRunUrl } from './lib/github.ts'
+import { parseNumbers } from './lib/notify.ts'
 
 function main(): void {
   const manifest = JSON.parse(
@@ -11,9 +12,22 @@ function main(): void {
   const version = process.argv[3] ?? manifest.mainSha.slice(0, 7)
   const numbers = parseNumbers(process.argv[4])
   const repository = currentRepository()
-  const body = homolPendingComment(version, currentRunUrl(), manifest.included)
+  const included = manifest.included
+    .map(function toReference(pullRequest) {
+      return `#${pullRequest.number}`
+    })
+    .join(', ')
   for (const number of numbers) {
-    upsertMarkedComment(repository, number, `<!-- env-sync:${manifest.environment} -->`, body, true)
+    writeStage(
+      repository,
+      number,
+      manifest.environment,
+      {
+        kind: 'approval',
+        text: `aguardando aprovação do deploy \`${version}\` · [Revisar e aprovar](${currentRunUrl()}) · entram: ${included}`,
+      },
+      true,
+    )
     console.log(`#${number}: aviso de aprovação pendente`)
   }
 }

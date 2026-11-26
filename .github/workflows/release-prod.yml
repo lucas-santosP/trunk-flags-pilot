@@ -77,6 +77,7 @@ jobs:
         id: pending
         env:
           VERSION: ${{ needs.tag.outputs.version }}
+          ENV_DEV_ENABLED: ${{ vars.ENV_DEV_ENABLED }}
         run: bun scripts/release-notify.ts pending "$VERSION"
 
   deploy:
@@ -115,4 +116,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.tag.outputs.version }}
           PULL_REQUESTS: ${{ needs.notify.outputs.pull_requests }}
+          ENV_DEV_ENABLED: ${{ vars.ENV_DEV_ENABLED }}
         run: bun scripts/release-notify.ts done "$VERSION" "$PULL_REQUESTS"

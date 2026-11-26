@@ -1,6 +1,4 @@
-import type { HistoryEntry, ManifestPullRequest } from '../../shared/env-manifest.ts'
-
-export const RELEASE_MARKER = '<!-- release:production -->'
+import type { HistoryEntry } from '../../shared/env-manifest.ts'
 
 export function pullRequestsSince(history: HistoryEntry[], stopSha: string | null): number[] {
   const numbers: number[] = []
@@ -24,25 +22,4 @@ export function parseNumbers(value: string | undefined): number[] {
     .filter(function isValid(item) {
       return Number.isInteger(item) && item > 0
     })
-}
-
-export function homolPendingComment(
-  version: string,
-  runUrl: string,
-  included: ManifestPullRequest[],
-): string {
-  const list = included
-    .map(function toReference(pullRequest) {
-      return `#${pullRequest.number}`
-    })
-    .join(', ')
-  return `⏳ Aguardando aprovação do deploy de **homol** \`${version}\` · [Revisar e aprovar](${runUrl})\n\nEntram neste deploy: ${list}`
-}
-
-export function releasePendingComment(version: string, runUrl: string): string {
-  return `⏳ Na release \`${version}\`, aguardando aprovação do deploy de **produção** · [Revisar e aprovar](${runUrl})`
-}
-
-export function releaseDoneComment(version: string, runUrl: string): string {
-  return `🚀 Em **produção** na release \`${version}\` · [run](${runUrl})`
 }
