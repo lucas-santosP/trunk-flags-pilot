@@ -10,9 +10,7 @@ export function App() {
       <Header />
       <WelcomeBanner />
       <MemberCard />
-      {__APP_ENV__ !== 'production' && __ENV_PANEL__ !== null && (
-        <EnvPanel config={__ENV_PANEL__} />
-      )}
+      <EnvPanel config={__ENV_PANEL__ ?? { urls: null, repositoryUrl: null, history: [] }} />
 
       <Footer />
     </main>
