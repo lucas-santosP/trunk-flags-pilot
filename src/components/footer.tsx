@@ -1,3 +1,5 @@
+import { CardPreview } from '../features/card-preview/card-preview'
+
 export function Footer() {
   return (
     <footer className="flex flex-col gap-2 p-6 border-t-2 border-indigo-600">
@@ -8,6 +10,8 @@ export function Footer() {
         rerum, itaque quidem consectetur veniam labore maxime suscipit earum a quo laborum eius id
         sapiente cumque! Magni, eum?
       </p>
+
+      <CardPreview />
     </footer>
   )
 }
