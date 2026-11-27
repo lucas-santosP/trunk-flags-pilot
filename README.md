@@ -19,15 +19,15 @@ prod      = main (cada merge gera uma release que aguarda aprovação)
 
 Ninguém faz PR para dev ou homol. **Uma PR por feature, sempre contra `main`.**
 
-| Quero...                          | Faço                                                       |
-| --------------------------------- | ---------------------------------------------------------- |
-| colocar a feature em dev          | abrir a PR (não draft) e ter o review aprovado             |
-| colocar a feature em homol        | aplicar o label `homol` e aprovar o deploy no GitHub       |
-| tirar a feature de dev            | converter a PR em draft                                    |
-| tirar a feature de homol          | remover o label `homol`                                    |
-| atualizar a feature nos ambientes | dar push na branch da PR (o robô remonta)                  |
-| levar a feature para produção     | merge da PR (exige `homol-published`) e aprovar o deploy   |
-| fazer rollback                    | _Actions → Rollback production_ a partir de uma tag antiga |
+| Quero...                          | Faço                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| colocar a feature em dev          | abrir a PR (não draft) e ter o review aprovado                         |
+| colocar a feature em homol        | aplicar o label `homol` e aprovar o deploy no GitHub                   |
+| tirar a feature de dev            | converter a PR em draft                                                |
+| tirar a feature de homol          | remover o label `homol`                                                |
+| atualizar a feature nos ambientes | dar push na branch da PR (o robô remonta)                              |
+| levar a feature para produção     | merge da PR (exige `homol-published`) e aprovar o deploy               |
+| fazer rollback                    | _Actions → Rollback production_ (a partir da `main`, informando a tag) |
 
 ## Regras do robô (_Deploy dev_ e _Deploy homol_)
 
@@ -61,15 +61,15 @@ Dev e homol mostram uma matriz **PR × ambiente** (✓ no ar, ⚠ pulada com mot
 
 ## Workflows
 
-| Workflow                  | Gatilho                                                               | O que faz                                                            |
-| ------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `ci.yml`                  | PR                                                                    | format, lint, typecheck, testes, builds, checagem de prod            |
-| `deploy-dev.yml`          | push na main, fim do CI, manual ou disparo do trigger                 | monta dev via `_deploy-env.yml` (opcional por projeto)               |
-| `deploy-homol.yml`        | push na main, fim do CI, manual ou disparo do trigger                 | monta homol via `_deploy-env.yml`                                    |
-| `trigger-deploy-envs.yml` | evento na PR (label, draft, abertura, fechamento sem merge) ou review | dispara `deploy-dev.yml` (se existir) e `deploy-homol.yml` na `main` |
-| `_deploy-env.yml`         | só chamado por `deploy-dev.yml` e `deploy-homol.yml` (prefixo `_`)    | planeja, monta, builda, decide aprovação, publica e reporta          |
-| `deploy-production.yml`   | push na main                                                          | tag + pre-release + deploy de produção com aprovação                 |
-| `rollback-production.yml` | manual, a partir de uma tag                                           | redeploy de uma tag antiga em produção (pede `ROLLBACK`)             |
+| Workflow                  | Gatilho                                                               | O que faz                                                                                                |
+| ------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                  | PR                                                                    | format, lint, typecheck, testes, builds, checagem de prod                                                |
+| `deploy-dev.yml`          | push na main, fim do CI, manual ou disparo do trigger                 | monta dev via `_deploy-env.yml` (opcional por projeto)                                                   |
+| `deploy-homol.yml`        | push na main, fim do CI, manual ou disparo do trigger                 | monta homol via `_deploy-env.yml`                                                                        |
+| `trigger-deploy-envs.yml` | evento na PR (label, draft, abertura, fechamento sem merge) ou review | dispara `deploy-dev.yml` (se existir) e `deploy-homol.yml` na `main`                                     |
+| `_deploy-env.yml`         | só chamado por `deploy-dev.yml` e `deploy-homol.yml` (prefixo `_`)    | planeja, monta, builda, decide aprovação, publica e reporta                                              |
+| `deploy-production.yml`   | push na main                                                          | tag + pre-release + deploy de produção com aprovação                                                     |
+| `rollback-production.yml` | manual, a partir da `main`, com a tag como parâmetro                  | redeploy de uma tag em produção (pede `ROLLBACK`), marca a tag como Latest e as PRs revertidas no cartão |
 
 ## Scripts
 

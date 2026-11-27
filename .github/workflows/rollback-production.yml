@@ -3,8 +3,12 @@ name: Rollback production
 on:
   workflow_dispatch:
     inputs:
+      tag:
+        description: Tag da versão a republicar em produção (ex. v1.4.2)
+        type: string
+        required: true
       confirm:
-        description: Digite ROLLBACK para confirmar o redeploy desta tag em produção
+        description: Digite ROLLBACK para confirmar
         type: string
         required: true
 
@@ -19,12 +23,29 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      CONFIRM: ${{ inputs.confirm }}
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Somente tags vX.Y.Z e com confirmação
-        if: github.ref_type != 'tag' || !startsWith(github.ref_name, 'v') || inputs.confirm != 'ROLLBACK'
+      - name: Rodar a partir da main, com tag vX.Y.Z existente e confirmação
         run: |
-          echo "::error::Escolha uma TAG vX.Y.Z em 'Use workflow from' e digite ROLLBACK. Recebido: ${{ github.ref }}"
-          exit 1
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Rode o rollback a partir da main e informe a tag no campo 'tag'. Recebido: $GITHUB_REF"
+            exit 1
+          fi
+          if [ "$CONFIRM" != "ROLLBACK" ]; then
+            echo "::error::Digite ROLLBACK para confirmar."
+            exit 1
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag inválida: '$TAG'. Use o formato vX.Y.Z."
+            exit 1
+          fi
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --silent; then
+            echo "::error::A tag $TAG não existe."
+            exit 1
+          fi
 
   deploy:
     needs: verify
@@ -37,14 +58,26 @@ jobs:
     environment:
       name: production
       url: https://${{ vars.CF_PAGES_PROJECT }}.pages.dev
+    env:
+      TAG: ${{ inputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Código da tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
 
-      - uses: ./.github/actions/build-deploy
+      - name: Ferramentas da main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          path: main-tools
+
+      - uses: ./main-tools/.github/actions/build-deploy
         with:
           environment: production
           pages-branch: main
-          version: ${{ github.ref_name }}
+          version: ${{ inputs.tag }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           pages-project: ${{ vars.CF_PAGES_PROJECT }}
@@ -52,16 +85,10 @@ jobs:
       - name: Marcar release como latest
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$GITHUB_REF_NAME" --prerelease=false --latest
-
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-          path: main-tools
+        run: gh release edit "$TAG" --prerelease=false --latest
 
       - name: Marcar nas PRs revertidas que saíram de produção
         working-directory: main-tools
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bun scripts/release-notify.ts rollback "$GITHUB_REF_NAME"
+        run: bun scripts/release-notify.ts rollback "$TAG"

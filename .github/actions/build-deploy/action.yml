@@ -27,11 +27,16 @@ runs:
       shell: bash
       run: bun install --frozen-lockfile
 
+    - name: Commit buildado
+      id: commit
+      shell: bash
+      run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
     - name: Build
       shell: bash
       env:
         APP_VERSION: ${{ inputs.version }}
-        COMMIT_SHA: ${{ github.sha }}
+        COMMIT_SHA: ${{ steps.commit.outputs.sha }}
       run: bun run build:${{ inputs.environment }}
 
     - name: Produção sem painel nem manifesto
@@ -42,7 +47,7 @@ runs:
     - uses: ./.github/actions/pages-deploy
       with:
         pages-branch: ${{ inputs.pages-branch }}
-        commit-hash: ${{ github.sha }}
+        commit-hash: ${{ steps.commit.outputs.sha }}
         commit-message: ${{ inputs.environment }} ${{ inputs.version }}
         cloudflare-api-token: ${{ inputs.cloudflare-api-token }}
         cloudflare-account-id: ${{ inputs.cloudflare-account-id }}
