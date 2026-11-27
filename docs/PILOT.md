@@ -60,7 +60,9 @@ Pergunta para o diário: quanto tempo do push à produção, contando as 2 aprov
 
 ## Cenário 7: rollback
 
-1. _Actions → Rollback production_, em "Use workflow from" escolha uma tag anterior, digite `ROLLBACK`, aprove.
+1. _Actions → Rollback production_, com "Use workflow from" = `main`, informe a tag anterior no campo `tag`, digite `ROLLBACK`, aprove.
+   - O rollback roda sempre a lógica da `main` (inclusive para tags antigas) e builda o código da tag.
+   - As PRs publicadas depois da tag passam a mostrar "⚠️ revertida" no cartão.
 2. Confira o `/version.json` de produção e a coluna "prod" do painel em homol.
 3. Próximo merge na `main` sobe normalmente a versão nova.
 
