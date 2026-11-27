@@ -29,6 +29,11 @@ jobs:
   deploy:
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: write
+      issues: write
+      pull-requests: write
     environment:
       name: production
       url: https://${{ vars.CF_PAGES_PROJECT }}.pages.dev
@@ -48,3 +53,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit "$GITHUB_REF_NAME" --prerelease=false --latest
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          path: main-tools
+
+      - name: Marcar nas PRs revertidas que saíram de produção
+        working-directory: main-tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun scripts/release-notify.ts rollback "$GITHUB_REF_NAME"
