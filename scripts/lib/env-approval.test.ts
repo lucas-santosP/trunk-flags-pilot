@@ -49,6 +49,21 @@ describe('evaluateApproval', () => {
     expect(decision).toMatchObject({ changed: true, approvalRequired: false })
   })
 
+  it('publica sem aprovação quando só muda a lista de PRs puladas', () => {
+    const previous = manifest('m1', [pr(1, 'a')])
+    const next = {
+      ...manifest('m1', [pr(1, 'a')]),
+      skipped: [
+        { ...pr(2, 'b'), reason: 'build' as const, detail: 'build falha com esta PR somada a #1' },
+      ],
+    }
+    expect(evaluateApproval(next, previous, [])).toEqual({
+      changed: true,
+      approvalRequired: false,
+      reasons: [],
+    })
+  })
+
   it('exige aprovação quando a main recebeu commit que não passou pelo ambiente', () => {
     const previous = manifest('m1', [pr(1, 'a')])
     const withoutPullRequest = evaluateApproval(manifest('m2', [pr(1, 'a')]), previous, [

@@ -1,4 +1,4 @@
-export function DigitalCard() {
+export function MemberCard() {
   return (
     <section className="flex flex-col gap-4 sm:flex-row sm:items-center">
       <div className="relative aspect-[1.586] w-full max-w-sm overflow-hidden rounded-2xl bg-linear-to-br from-emerald-500 via-teal-600 to-cyan-700 p-5 text-white shadow-xl">

@@ -19,11 +19,23 @@ function includedKey(manifest: EnvManifest): string {
     .join(',')
 }
 
+function skippedKey(manifest: EnvManifest): string {
+  return manifest.skipped
+    .map(function toKey(pullRequest) {
+      return `${pullRequest.number}@${pullRequest.headSha}:${pullRequest.reason}`
+    })
+    .join(',')
+}
+
 export function hasChanges(next: EnvManifest, previous: EnvManifest | null): boolean {
   if (!previous) {
     return true
   }
-  return next.mainSha !== previous.mainSha || includedKey(next) !== includedKey(previous)
+  return (
+    next.mainSha !== previous.mainSha ||
+    includedKey(next) !== includedKey(previous) ||
+    skippedKey(next) !== skippedKey(previous)
+  )
 }
 
 function wasDeployedWith(previous: EnvManifest, number: number, headSha: string): boolean {
