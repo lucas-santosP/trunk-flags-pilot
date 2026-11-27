@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs'
 
 import { git, readMainHistory, tryGit } from './lib/git.ts'
-import { writeStage } from './lib/card-writer.ts'
+import { markProductionRolledBack, writeStage } from './lib/card-writer.ts'
 import { currentRepository, currentRunUrl, latestPublishedReleaseTag } from './lib/github.ts'
 import { parseNumbers, pullRequestsSince } from './lib/notify.ts'
 
@@ -52,17 +52,32 @@ function notifyDone(repository: string, version: string, numbers: number[]): voi
   }
 }
 
+function notifyRollback(repository: string, tag: string): void {
+  const history = readMainHistory('origin/main', HISTORY_LIMIT)
+  const tagSha = git(['rev-list', '-n', '1', tag])
+  for (const number of pullRequestsSince(history, tagSha)) {
+    markProductionRolledBack(repository, number, {
+      kind: 'skipped',
+      text: `revertida pelo rollback para \`${tag}\` · [run](${currentRunUrl()}). Volta na próxima release`,
+    })
+    console.log(`#${number}: marcada como revertida (se estava em produção)`)
+  }
+}
+
 function main(): void {
   const [mode, version, numbers] = process.argv.slice(2)
-  if (!version || (mode !== 'pending' && mode !== 'done')) {
-    console.error('uso: release-notify.ts <pending|done> <versão> [prs]')
+  const modes = ['pending', 'done', 'rollback']
+  if (!version || !modes.includes(mode)) {
+    console.error('uso: release-notify.ts <pending|done|rollback> <versão> [prs]')
     process.exit(1)
   }
   const repository = currentRepository()
   if (mode === 'pending') {
     notifyPending(repository, version)
-  } else {
+  } else if (mode === 'done') {
     notifyDone(repository, version, parseNumbers(numbers))
+  } else {
+    notifyRollback(repository, version)
   }
 }
 

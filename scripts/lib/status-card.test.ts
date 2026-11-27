@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { markOutside, parseCard, renderCard, updateCard } from './status-card.ts'
+import { markOutside, markRolledBack, parseCard, renderCard, updateCard } from './status-card.ts'
 
 describe('status card', () => {
   it('cria o cartão pedindo o label homol depois de dev', () => {
@@ -60,5 +60,21 @@ describe('markOutside', () => {
     expect(markOutside(null, 'homol', { kind: 'out', text: 'fora' }, true)).toBeNull()
     const devOnly = updateCard(null, 'dev', { kind: 'live', text: 'dev ok' }, true)
     expect(markOutside(devOnly, 'homol', { kind: 'out', text: 'fora' }, true)).toBeNull()
+  })
+})
+
+describe('markRolledBack', () => {
+  it('marca só PRs que estavam em produção', () => {
+    const live = updateCard(
+      null,
+      'production',
+      { kind: 'live', text: 'em produção na `v2`' },
+      false,
+    )
+    const reverted = markRolledBack(live, { kind: 'skipped', text: 'revertida para `v1`' }, false)
+    expect(reverted).toContain('| produção | ⚠️ revertida para `v1` |')
+    const pending = updateCard(null, 'production', { kind: 'approval', text: 'aguardando' }, false)
+    expect(markRolledBack(pending, { kind: 'skipped', text: 'revertida' }, false)).toBeNull()
+    expect(markRolledBack(null, { kind: 'skipped', text: 'revertida' }, false)).toBeNull()
   })
 })

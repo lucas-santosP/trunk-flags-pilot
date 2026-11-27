@@ -120,4 +120,16 @@ export function markOutside(
   return updateCard(body, stage, stageState, devEnabled)
 }
 
+export function markRolledBack(
+  body: string | null,
+  stageState: StageState,
+  devEnabled: boolean | null,
+): string | null {
+  const current = parseCard(body)
+  if (!current || current.production?.kind !== 'live') {
+    return null
+  }
+  return updateCard(body, 'production', stageState, devEnabled)
+}
+
 export const DEV_WORKFLOW_PATH = '.github/workflows/deploy-dev.yml'
