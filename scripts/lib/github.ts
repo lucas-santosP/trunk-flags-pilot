@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 
 import type { CiState, PullRequestSnapshot } from './env-plan.ts'
-import { HOMOL_LABEL } from './env-plan.ts'
+import { HOMOL_LABEL, HOTFIX_LABEL } from './env-plan.ts'
 import type { MainCommit } from './env-approval.ts'
 
 export const CI_CHECK_NAME = 'checks'
@@ -57,7 +57,7 @@ query($owner: String!, $name: String!) {
         labels(first: 30) { nodes { name } }
         latestReviews(first: 30) { nodes { state submittedAt } }
         timelineItems(itemTypes: [LABELED_EVENT], last: 50) {
-          nodes { ... on LabeledEvent { createdAt label { name } } }
+          nodes { ... on LabeledEvent { createdAt label { name } actor { login } } }
         }
         commits(last: 1) {
           nodes {
@@ -96,7 +96,9 @@ type PullRequestNode = {
   createdAt: string
   labels: { nodes: { name: string }[] }
   latestReviews: { nodes: { state: string; submittedAt: string | null }[] }
-  timelineItems: { nodes: { createdAt?: string; label?: { name: string } }[] }
+  timelineItems: {
+    nodes: { createdAt?: string; label?: { name: string }; actor?: { login: string } | null }[]
+  }
   commits: {
     nodes: {
       commit: {
@@ -126,6 +128,17 @@ function ciStateOf(node: PullRequestNode): CiState {
     return 'pending'
   }
   return 'failure'
+}
+
+function lastLabeler(node: PullRequestNode, label: string): string | null {
+  const events = node.timelineItems.nodes
+    .filter(function isLabel(item) {
+      return item.label?.name === label && item.createdAt !== undefined
+    })
+    .sort(function byDate(first, second) {
+      return (first.createdAt ?? '').localeCompare(second.createdAt ?? '')
+    })
+  return events.at(-1)?.actor?.login ?? null
 }
 
 function toSnapshot(node: PullRequestNode): PullRequestSnapshot {
@@ -163,6 +176,7 @@ function toSnapshot(node: PullRequestNode): PullRequestSnapshot {
       return review.state === 'CHANGES_REQUESTED'
     }),
     homolLabeledAt: homolLabelings.at(-1) ?? null,
+    hotfixLabeledBy: lastLabeler(node, HOTFIX_LABEL),
   }
 }
 
@@ -183,7 +197,12 @@ export function fetchOpenPullRequests(repository: string): PullRequestSnapshot[]
   return response.data.repository.pullRequests.nodes.map(toSnapshot)
 }
 
-type CommitPullRequest = { number: number; merged_at: string | null; head: { sha: string } }
+type CommitPullRequest = {
+  number: number
+  merged_at: string | null
+  head: { sha: string }
+  labels: { name: string }[]
+}
 
 export function mainCommitFor(repository: string, sha: string): MainCommit {
   const pulls = ghJson<CommitPullRequest[]>(['api', `repos/${repository}/commits/${sha}/pulls`])
@@ -192,7 +211,15 @@ export function mainCommitFor(repository: string, sha: string): MainCommit {
   })
   return {
     sha,
-    pullRequest: merged ? { number: merged.number, headSha: merged.head.sha } : null,
+    pullRequest: merged
+      ? {
+          number: merged.number,
+          headSha: merged.head.sha,
+          hotfix: merged.labels.some(function isHotfix(label) {
+            return label.name === HOTFIX_LABEL
+          }),
+        }
+      : null,
   }
 }
 
@@ -222,18 +249,52 @@ export function setCommitStatus(
   ])
 }
 
-type CombinedStatus = { statuses: { context: string; state: CommitState }[] }
+type CombinedStatus = {
+  statuses: { context: string; state: CommitState; description: string | null }[]
+}
+
+export type CommitStatus = { state: CommitState; description: string }
+
+export function commitStatusOf(
+  repository: string,
+  sha: string,
+  context: string,
+): CommitStatus | null {
+  const combined = ghJson<CombinedStatus>(['api', `repos/${repository}/commits/${sha}/status`])
+  const status = combined.statuses.find(function matchesContext(item) {
+    return item.context === context
+  })
+  return status ? { state: status.state, description: status.description ?? '' } : null
+}
 
 export function commitStatusState(
   repository: string,
   sha: string,
   context: string,
 ): CommitState | null {
-  const combined = ghJson<CombinedStatus>(['api', `repos/${repository}/commits/${sha}/status`])
-  const status = combined.statuses.find(function matchesContext(item) {
-    return item.context === context
-  })
-  return status?.state ?? null
+  return commitStatusOf(repository, sha, context)?.state ?? null
+}
+
+export function collaboratorRole(repository: string, login: string): string | null {
+  try {
+    return (
+      gh(['api', `repos/${repository}/collaborators/${login}/permission`, '--jq', '.role_name']) ||
+      null
+    )
+  } catch {
+    return null
+  }
+}
+
+export function removeLabel(repository: string, number: number, label: string): void {
+  gh(['api', '--method', 'DELETE', `repos/${repository}/issues/${number}/labels/${label}`])
+}
+
+export function createComment(repository: string, number: number, body: string): void {
+  gh(
+    ['api', '--method', 'POST', `repos/${repository}/issues/${number}/comments`, '--input', '-'],
+    JSON.stringify({ body }),
+  )
 }
 
 type IssueComment = { id: number; body: string }

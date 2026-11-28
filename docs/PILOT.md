@@ -46,11 +46,11 @@ As features dos cenários são fictícias. Exemplos de mudanças pequenas: troca
 
 ## Cenário 5: hotfix
 
-1. `fix/texto-banner` com a correção. Label `homol` → aprova homol → valida.
-2. Merge → aprova produção.
-3. Observe que dev e homol recebem a correção ao serem remontados sobre a nova `main`: não há propagação manual.
-
-Pergunta para o diário: quanto tempo do push à produção, contando as 2 aprovações?
+1. `fix/texto-banner` com a correção. Aplique o label `hotfix` (precisa ser `maintain`/`admin`).
+2. Esperado: `homol-published` verde como "Dispensado (hotfix por @você)", cartão com homol ⏭️ e "pode fazer o merge", sem deploy de homol.
+3. Merge → aprove produção.
+4. Observe que dev e homol recebem a correção ao serem remontados sobre a nova `main`, e homol **não** pede aprovação.
+5. Remova o label de outra PR de teste com `hotfix` → status volta para pendente.
 
 ## Cenário 6: reprovação em homol
 

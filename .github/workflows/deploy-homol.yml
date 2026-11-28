@@ -22,3 +22,24 @@ jobs:
     with:
       environment: homol
     secrets: inherit
+
+  hotfix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOTFIX_ALLOWED_ROLES: ${{ vars.HOTFIX_ALLOWED_ROLES }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Dispensar homol para PRs com label hotfix
+        run: bun scripts/hotfix-waiver.ts

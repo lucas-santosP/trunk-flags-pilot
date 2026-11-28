@@ -1,6 +1,6 @@
 export const STATUS_CARD_MARKER = '<!-- pr-status-card'
 
-export type StageKind = 'live' | 'approval' | 'skipped' | 'out'
+export type StageKind = 'live' | 'approval' | 'skipped' | 'out' | 'waived'
 
 export type StageState = { kind: StageKind; text: string }
 
@@ -14,9 +14,9 @@ export type CardState = {
 }
 
 const STAGE_ICONS: Record<CardStage, Record<StageKind, string>> = {
-  dev: { live: '✅', approval: '⏳', skipped: '⚠️', out: '⬜' },
-  homol: { live: '✅', approval: '⏳', skipped: '⚠️', out: '⬜' },
-  production: { live: '🚀', approval: '⏳', skipped: '⚠️', out: '—' },
+  dev: { live: '✅', approval: '⏳', skipped: '⚠️', out: '⬜', waived: '⏭️' },
+  homol: { live: '✅', approval: '⏳', skipped: '⚠️', out: '⬜', waived: '⏭️' },
+  production: { live: '🚀', approval: '⏳', skipped: '⚠️', out: '—', waived: '⏭️' },
 }
 
 const STATE_PATTERN = /<!-- pr-status-card:([A-Za-z0-9+/=]+) -->/
@@ -47,7 +47,7 @@ function mergeRow(state: CardState): string {
   if (state.production) {
     return '✅ mergeada'
   }
-  if (state.homol?.kind === 'live') {
+  if (state.homol?.kind === 'live' || state.homol?.kind === 'waived') {
     return '✅ **Próximo passo:** pode fazer o merge'
   }
   return '🔒 liberado após homol'

@@ -47,6 +47,19 @@ describe('status card', () => {
   })
 })
 
+describe('hotfix', () => {
+  it('libera o merge com homol dispensado', () => {
+    const body = updateCard(
+      null,
+      'homol',
+      { kind: 'waived', text: 'dispensado (hotfix por @lider)' },
+      true,
+    )
+    expect(body).toContain('| homol | ⏭️ dispensado (hotfix por @lider) |')
+    expect(body).toContain('**Próximo passo:** pode fazer o merge')
+  })
+})
+
 describe('markOutside', () => {
   it('marca fora só quando a etapa estava ativa', () => {
     const live = updateCard(null, 'homol', { kind: 'live', text: 'homol ok' }, false)

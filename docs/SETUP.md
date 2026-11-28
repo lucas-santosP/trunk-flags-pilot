@@ -13,6 +13,7 @@ O Cloudflare (projeto Pages, token e Account ID) e os secrets/variáveis básico
 | `homol`         | coloca a PR em homol                   |
 | `release:minor` | o merge desta PR gera uma versão minor |
 | `release:major` | o merge desta PR gera uma versão major |
+| `hotfix`        | dispensa homol (só `maintain`/`admin`) |
 
 ### 2. Variáveis (_Settings → Secrets and variables → Actions → Variables_)
 

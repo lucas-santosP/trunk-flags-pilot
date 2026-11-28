@@ -2,7 +2,7 @@ import type { EnvManifest } from '../../shared/env-manifest.ts'
 
 export type MainCommit = {
   sha: string
-  pullRequest: { number: number; headSha: string } | null
+  pullRequest: { number: number; headSha: string; hotfix?: boolean } | null
 }
 
 export type ApprovalDecision = {
@@ -82,6 +82,8 @@ export function evaluateApproval(
     for (const commit of mainCommits) {
       if (!commit.pullRequest) {
         reasons.push(`commit ${commit.sha.slice(0, 7)} entrou na main sem PR`)
+      } else if (commit.pullRequest.hotfix) {
+        continue
       } else if (
         !wasDeployedWith(previous, commit.pullRequest.number, commit.pullRequest.headSha)
       ) {
