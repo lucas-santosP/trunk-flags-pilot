@@ -51,6 +51,7 @@ As features dos cenários são fictícias. Exemplos de mudanças pequenas: troca
 3. Merge → aprove produção.
 4. Observe que dev e homol recebem a correção ao serem remontados sobre a nova `main`, e homol **não** pede aprovação.
 5. Remova o label de outra PR de teste com `hotfix` → status volta para pendente.
+6. Push numa PR com `hotfix` → o commit novo fica sem dispensa (merge bloqueado) até reaplicar o label.
 
 ## Cenário 6: reprovação em homol
 

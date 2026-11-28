@@ -57,7 +57,7 @@ query($owner: String!, $name: String!) {
         labels(first: 30) { nodes { name } }
         latestReviews(first: 30) { nodes { state submittedAt } }
         timelineItems(itemTypes: [LABELED_EVENT], last: 50) {
-          nodes { ... on LabeledEvent { createdAt label { name } actor { login } } }
+          nodes { ... on LabeledEvent { createdAt label { name } } }
         }
         commits(last: 1) {
           nodes {
@@ -96,9 +96,7 @@ type PullRequestNode = {
   createdAt: string
   labels: { nodes: { name: string }[] }
   latestReviews: { nodes: { state: string; submittedAt: string | null }[] }
-  timelineItems: {
-    nodes: { createdAt?: string; label?: { name: string }; actor?: { login: string } | null }[]
-  }
+  timelineItems: { nodes: { createdAt?: string; label?: { name: string } }[] }
   commits: {
     nodes: {
       commit: {
@@ -128,17 +126,6 @@ function ciStateOf(node: PullRequestNode): CiState {
     return 'pending'
   }
   return 'failure'
-}
-
-function lastLabeler(node: PullRequestNode, label: string): string | null {
-  const events = node.timelineItems.nodes
-    .filter(function isLabel(item) {
-      return item.label?.name === label && item.createdAt !== undefined
-    })
-    .sort(function byDate(first, second) {
-      return (first.createdAt ?? '').localeCompare(second.createdAt ?? '')
-    })
-  return events.at(-1)?.actor?.login ?? null
 }
 
 function toSnapshot(node: PullRequestNode): PullRequestSnapshot {
@@ -176,7 +163,6 @@ function toSnapshot(node: PullRequestNode): PullRequestSnapshot {
       return review.state === 'CHANGES_REQUESTED'
     }),
     homolLabeledAt: homolLabelings.at(-1) ?? null,
-    hotfixLabeledBy: lastLabeler(node, HOTFIX_LABEL),
   }
 }
 

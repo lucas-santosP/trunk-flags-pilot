@@ -1,48 +1,34 @@
 import { describe, expect, it } from 'vitest'
 
+import type { HotfixInput } from './hotfix.ts'
 import { hotfixAction, parseAllowedRoles, waiverDescription } from './hotfix.ts'
-
-const ROLES: Record<string, string> = { lider: 'maintain', dona: 'admin', dev: 'write' }
-
-function roleOf(login: string): string | null {
-  return ROLES[login] ?? null
-}
 
 const allowed = parseAllowedRoles(undefined)
 
+function input(partial: Partial<HotfixInput>): HotfixInput {
+  return {
+    event: 'labeled',
+    actorRole: 'maintain',
+    currentState: null,
+    currentDescription: null,
+    ...partial,
+  }
+}
+
 describe('hotfixAction', () => {
   it('dispensa homol quando quem aplicou o label tem permissão', () => {
-    const action = hotfixAction(
-      {
-        labels: ['hotfix'],
-        hotfixLabeledBy: 'lider',
-        currentDescription: null,
-        currentState: null,
-      },
-      roleOf,
-      allowed,
-    )
-    expect(action).toEqual({ kind: 'waive', by: 'lider' })
+    expect(hotfixAction(input({}), allowed)).toEqual({ kind: 'waive' })
+    expect(hotfixAction(input({ actorRole: 'admin' }), allowed)).toEqual({ kind: 'waive' })
   })
 
   it('recusa quando quem aplicou o label não tem permissão', () => {
-    const action = hotfixAction(
-      { labels: ['hotfix'], hotfixLabeledBy: 'dev', currentDescription: null, currentState: null },
-      roleOf,
-      allowed,
-    )
-    expect(action).toEqual({ kind: 'reject', by: 'dev' })
+    expect(hotfixAction(input({ actorRole: 'write' }), allowed)).toEqual({ kind: 'reject' })
+    expect(hotfixAction(input({ actorRole: null }), allowed)).toEqual({ kind: 'reject' })
   })
 
-  it('não repete a dispensa no mesmo commit', () => {
+  it('não sobrescreve o status quando a PR já está verde (ex.: também em homol)', () => {
     const action = hotfixAction(
-      {
-        labels: ['hotfix'],
-        hotfixLabeledBy: 'dona',
-        currentDescription: waiverDescription('dona'),
-        currentState: 'success',
-      },
-      roleOf,
+      input({ currentState: 'success', currentDescription: 'Incluída no deploy de homol' }),
       allowed,
     )
     expect(action).toEqual({ kind: 'none' })
@@ -50,43 +36,23 @@ describe('hotfixAction', () => {
 
   it('revoga a dispensa quando o label sai', () => {
     const action = hotfixAction(
-      {
-        labels: [],
-        hotfixLabeledBy: 'dona',
-        currentDescription: waiverDescription('dona'),
+      input({
+        event: 'unlabeled',
         currentState: 'success',
-      },
-      roleOf,
+        currentDescription: waiverDescription('lider'),
+      }),
       allowed,
     )
     expect(action).toEqual({ kind: 'revoke' })
   })
 
-  it('ignora PRs sem hotfix e sem dispensa', () => {
+  it('não mexe no status de homol de verdade quando o label sai', () => {
     const action = hotfixAction(
-      {
-        labels: ['homol'],
-        hotfixLabeledBy: null,
-        currentDescription: 'Incluída no deploy de homol',
+      input({
+        event: 'unlabeled',
         currentState: 'success',
-      },
-      roleOf,
-      allowed,
-    )
-    expect(action).toEqual({ kind: 'none' })
-  })
-})
-
-describe('hotfix junto com homol', () => {
-  it('não sobrescreve o status quando a PR já está verde em homol', () => {
-    const action = hotfixAction(
-      {
-        labels: ['hotfix', 'homol'],
-        hotfixLabeledBy: 'lider',
         currentDescription: 'Incluída no deploy de homol',
-        currentState: 'success',
-      },
-      roleOf,
+      }),
       allowed,
     )
     expect(action).toEqual({ kind: 'none' })
