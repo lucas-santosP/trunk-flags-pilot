@@ -18,6 +18,7 @@ function pullRequest(
     approvedAt: '2026-11-02T00:00:00Z',
     changesRequested: false,
     homolLabeledAt: null,
+    hotfixLabeledBy: null,
     ...overrides,
   }
 }

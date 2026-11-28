@@ -76,6 +76,15 @@ describe('evaluateApproval', () => {
     expect(otherVersion.approvalRequired).toBe(true)
   })
 
+  it('não exige aprovação por commit de hotfix que pulou homol', () => {
+    const previous = manifest('m1', [])
+    const next = manifest('m2', [])
+    const decision = evaluateApproval(next, previous, [
+      { sha: 'm2', pullRequest: { number: 9, headSha: 'h9', hotfix: true } },
+    ])
+    expect(decision).toEqual({ changed: true, approvalRequired: false, reasons: [] })
+  })
+
   it('exige aprovação quando a main não descende da anterior', () => {
     const previous = manifest('m1', [])
     expect(evaluateApproval(manifest('m9', []), previous, null).approvalRequired).toBe(true)

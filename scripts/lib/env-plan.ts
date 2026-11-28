@@ -6,6 +6,8 @@ import type {
 
 export const HOMOL_LABEL = 'homol'
 
+export const HOTFIX_LABEL = 'hotfix'
+
 export type CiState = 'success' | 'failure' | 'pending'
 
 export type PullRequestSnapshot = ManifestPullRequest & {
@@ -17,6 +19,7 @@ export type PullRequestSnapshot = ManifestPullRequest & {
   approvedAt: string | null
   changesRequested: boolean
   homolLabeledAt: string | null
+  hotfixLabeledBy: string | null
 }
 
 export type PlanOptions = {

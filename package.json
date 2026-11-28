@@ -23,6 +23,7 @@
     "env:publish": "bun scripts/env-publish.ts",
     "env:notify": "bun scripts/env-notify.ts",
     "release:notify": "bun scripts/release-notify.ts",
+    "hotfix:waiver": "bun scripts/hotfix-waiver.ts",
     "release:next-version": "bun scripts/next-version.ts"
   },
   "dependencies": {

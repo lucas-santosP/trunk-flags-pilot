@@ -12,6 +12,7 @@ import {
   setCommitStatus,
 } from './lib/github.ts'
 import { markStageOutside, writeStage } from './lib/card-writer.ts'
+import { HOTFIX_LABEL } from './lib/env-plan.ts'
 import { pullRequestsOutsideEnvironment, STATUS_CONTEXTS } from './lib/env-status.ts'
 
 function pushEnvironmentBranch(manifest: EnvManifest): void {
@@ -80,8 +81,9 @@ function report(manifest: EnvManifest, version: string): void {
   }
 
   const openPullRequests = fetchOpenPullRequests(repository).filter(
-    function isSameRepository(pullRequest) {
-      return !pullRequest.isCrossRepository
+    function isTracked(pullRequest) {
+      const waived = manifest.environment === 'homol' && pullRequest.labels.includes(HOTFIX_LABEL)
+      return !pullRequest.isCrossRepository && !waived
     },
   )
   const waitingNumbers = new Set(
