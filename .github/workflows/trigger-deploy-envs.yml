@@ -8,6 +8,10 @@ on:
 
 permissions:
   actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+  statuses: write
 
 jobs:
   trigger:
@@ -24,3 +28,24 @@ jobs:
               echo "Disparado: $workflow"
             fi
           done
+
+      - name: Checkout da main (scripts confiáveis, nunca o código da PR)
+        if: (github.event.action == 'labeled' || github.event.action == 'unlabeled') && github.event.label.name == 'hotfix'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Bun
+        if: (github.event.action == 'labeled' || github.event.action == 'unlabeled') && github.event.label.name == 'hotfix'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Aplicar ou revogar a dispensa de homol (label hotfix)
+        if: (github.event.action == 'labeled' || github.event.action == 'unlabeled') && github.event.label.name == 'hotfix'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOTFIX_ALLOWED_ROLES: ${{ vars.HOTFIX_ALLOWED_ROLES }}
+          LABEL_ACTION: ${{ github.event.action }}
+          LABEL_ACTOR: ${{ github.event.sender.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bun scripts/hotfix-waiver.ts

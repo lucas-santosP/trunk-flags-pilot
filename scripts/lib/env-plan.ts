@@ -19,7 +19,6 @@ export type PullRequestSnapshot = ManifestPullRequest & {
   approvedAt: string | null
   changesRequested: boolean
   homolLabeledAt: string | null
-  hotfixLabeledBy: string | null
 }
 
 export type PlanOptions = {
