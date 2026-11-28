@@ -4,7 +4,7 @@ export function WelcomeBanner() {
       <p className="text-sm font-medium tracking-wide uppercase opacity-80">Novidade da semana</p>
       <h2 className="mt-1 text-2xl font-semibold">Bem-vindo ao novo portal fictício</h2>
       <p className="mt-2 opacity-90">
-        App fictício do piloto de ambientes montados a partir de PRs.
+        App fictício do piloto de ambientes montados a partir de pull requests.
       </p>
     </section>
   )
